@@ -2,9 +2,9 @@
 name = "heating-planner"
 version = "0.1.0"
 description = ""
-authors = ["François Weber <f.weber@qwant.com>"]
+authors = ["François Weber <francois.weber.commercial@gmx.fr>"]
 readme = "README.md"
-packages = [{include = "heating_planner"}]
+packages = [{ include = "heating_planner" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -12,6 +12,9 @@ jupyterlab = "^4.0.3"
 numpy = "^1.25.2"
 seaborn = "^0.12.2"
 
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.7.0"
 
 [build-system]
 requires = ["poetry-core"]
