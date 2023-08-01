@@ -1,0 +1,11 @@
+T, mean temperature
+TN, minimum temperature
+TNn, minimum minimum temperature
+TX, maximum temperature
+TXx, maximum maximum temperature
+TX40, days above 40°C
+TX35, days above 35°C
+PR, total precipitation
+RX1day, max 1-day precipitation
+RX5day, max 5-ay precipitation
+CDD, consecutive dry days
