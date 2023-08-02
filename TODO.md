@@ -1,0 +1,1 @@
+- apparently the colorscale is not preserved on `convert_maps_to_values.py` since the real colorscale within the screenshot is not fully preserved
