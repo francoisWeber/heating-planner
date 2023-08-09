@@ -1,0 +1,6 @@
+COL_SCREENSHOTS_FNAME = "screenshot_fname"
+SCREENSHOT_DIRECTORY = "screenshots"
+VALUE_MAP_IMG_DIRECTORY = "valuemaps_image"
+COL_VALUE_MAP_IMG_FNAME = "valuemap_img_fname"
+VALUE_MAP_ARRAY_DIRECTORY = "valuemaps_array"
+COL_VALUE_MAP_ARRAY_FNAME = "valuemap_array_fname"

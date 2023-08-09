@@ -16,7 +16,7 @@ def extract_colorscale_from_image(
     right: int = COLORSCALE_RIGHT_PIX,
     bottom: int = COLORSCALE_BOTTOM_PIX,
 ) -> np.ndarray:
-    return np.asarray(img.crop((left, top, right, bottom)))[:, 0, :]
+    return np.asarray(img.crop((left, top, right, bottom)))[:, 0, :3]
 
 
 def get_value_scale_from_min_max(
