@@ -17,9 +17,17 @@ CROP_TOP = 1050
 CROP_RIGHT = CROP_LEFT + 600
 CROP_BOTTOM = CROP_TOP + 600
 
+MASK_FNAME = "data/france_mask.png"
 
-def crop_to_france(im: Image.Image) -> Image.Image:
-    return im.crop((CROP_LEFT, CROP_TOP, CROP_RIGHT, CROP_BOTTOM))
+
+def crop_to_france(im: np.ndarray) -> np.ndarray:
+    return im[CROP_TOP:CROP_BOTTOM, CROP_LEFT:CROP_RIGHT]
+
+
+def prepare_mask_from_file(mask_file):
+    mask = np.asarray(Image.open(mask_file))[:, :, 3]
+    mask = np.where(mask == 0, 1.0, np.nan)
+    return np.expand_dims(mask, axis=-1)
 
 
 def hash_color(arrays_on_3channels):
@@ -63,17 +71,27 @@ def get_association_fn(
 
 
 def get_value_map(
-    screenshot_fname, scale_mini, scale_maxi, crop=True, **kwargs
+    screenshot_fname,
+    scale_mini,
+    scale_maxi,
+    crop=True,
+    apply_mask=True,
+    **kwargs,
 ) -> np.ndarray:
     img_fname = osp.join("data", cst.SCREENSHOT_DIRECTORY, screenshot_fname)
     im = Image.open(img_fname)
     # get colorbar
     colorbar = extract_colorscale_from_image(im)
+    img = np.asarray(im, dtype=np.float32)[:, :, :3]
+
+    # maybe mask
+    if apply_mask:
+        mask = prepare_mask_from_file(MASK_FNAME)
+        img = img * mask
 
     # maybe crop and convert to numpy
     if crop:
-        im = crop_to_france(im)
-    img = np.asarray(im, dtype=np.float32)[:, :, :3]
+        img = crop_to_france(img)
 
     # hash colors everywhere and prepare value scale
     img_hashed = hash_color((img))
