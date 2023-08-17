@@ -1,177 +1,151 @@
 import os
+import traceback
 from os import path as osp
 
 import numpy as np
 import pandas as pd
 import typer
 from loguru import logger as log
-from PIL import Image
-from functools import lru_cache
-from heating_planner import constantes as cst
-from heating_planner.colorscale import extract_colorscale_from_image
 from matplotlib import pyplot as plt
-import traceback
+from PIL import Image
 
-CROP_LEFT = 1350
-CROP_TOP = 1050
-CROP_RIGHT = CROP_LEFT + 600
-CROP_BOTTOM = CROP_TOP + 600
-
-MASK_FNAME = "data/france_mask.png"
+from heating_planner.colorscale import hash1D_color
 
 
-def crop_to_france(im: np.ndarray) -> np.ndarray:
-    return im[CROP_TOP:CROP_BOTTOM, CROP_LEFT:CROP_RIGHT]
+LEFT = 1228
+TOP = 337
+RIGHT = LEFT + 1
+BOTTOM = 1493
 
 
-def prepare_mask_from_file(mask_file):
-    mask = np.asarray(Image.open(mask_file))[:, :, 3]
-    mask = np.where(mask == 0, 1.0, np.nan)
-    return np.expand_dims(mask, axis=-1)
+def get_colorscale(im: Image.Image) -> np.ndarray:
+    colorscale = np.asarray(im.crop((LEFT, TOP, RIGHT, BOTTOM)))[:, 0, :]
+    return colorscale
 
 
-def hash_color(arrays_on_3channels):
-    return np.sum(arrays_on_3channels * np.power(255, [0, 1, 2]), -1)
-
-
-def approx_hash_color2value(
-    hashed_color,
-    hashed_color2value: dict,
-    hashed_colorbar: np.ndarray,
-    values_range: np.ndarray,
-):
-    if hashed_color in hashed_color2value:
-        return hashed_color2value[hashed_colorbar]
-    else:
-        return _approx_hash_color2value(hashed_color, hashed_colorbar, values_range)
-
-
-def _approx_hash_color2value(
-    hashed_color, hashed_colorbar: np.ndarray, values_range: np.ndarray
-):
-    weights = 1 / (np.abs(hashed_colorbar - hashed_color) ** 2)
-    weights /= weights.sum()
-    return np.sum(weights * values_range)
-
-
-def get_association_fn(
-    hashed_color2value: dict, hashed_colorbar: np.ndarray, values_range: np.ndarray
-):
-    @lru_cache(maxsize=1024)
-    def fn_out_of_dict(hashed_color) -> float:
-        return _approx_hash_color2value(hashed_color, hashed_colorbar, values_range)
-
-    def fn(hashed_color):
-        if hashed_color in hashed_color2value:
-            return hashed_color2value[hashed_color]
+def get_ordered_hashed_colorscale_items(colorscale_hashed):
+    ordered_hashed_colors = []
+    for c in colorscale_hashed:
+        # discard 0 that is black
+        if c in ordered_hashed_colors or c == 0:
+            continue
         else:
-            return fn_out_of_dict(hashed_color)
+            ordered_hashed_colors.append(c)
+    return np.flip(ordered_hashed_colors)
 
-    return fn
+
+def get_out_of_range_values(scale_range, alpha=1.5):
+    m = min(scale_range)
+    M = max(scale_range)
+    segment_len = M - m
+    half = m + segment_len / 2
+    m_lower = half - (segment_len / 2) * alpha
+    M_upper = half + (segment_len / 2) * alpha
+    return (m_lower, M_upper)
 
 
-def get_value_map(
-    screenshot_fname,
-    scale_mini,
-    scale_maxi,
-    crop=True,
-    apply_mask=True,
-    **kwargs,
-) -> np.ndarray:
-    img_fname = osp.join("data", cst.SCREENSHOT_DIRECTORY, screenshot_fname)
-    im = Image.open(img_fname)
-    # get colorbar
-    colorbar = extract_colorscale_from_image(im)
-    img = np.asarray(im, dtype=np.float32)[:, :, :3]
-
-    # maybe mask
-    if apply_mask:
-        mask = prepare_mask_from_file(MASK_FNAME)
-        img = img * mask
-
-    # maybe crop and convert to numpy
-    if crop:
-        img = crop_to_france(img)
-
-    # hash colors everywhere and prepare value scale
-    img_hashed = hash_color((img))
-    hashed_colorbar = hash_color(colorbar)
-    values_range = np.linspace(scale_maxi, scale_mini, len(hashed_colorbar))
-    hashed_color2value = {
-        hash_color: value for hash_color, value in zip(hashed_colorbar, values_range)
+def get_hashedcol2values_dict(ordered_hashed_colors, scale_range):
+    m, M = get_out_of_range_values(scale_range)
+    hashedcol2value = {
+        ordered_hashed_colors[0]: M,  # upper extremum out of bound
+        ordered_hashed_colors[-1]: m,  # lower extremum out of bound
     }
-
-    # prepare and execute the color => value association
-    get_value = get_association_fn(hashed_color2value, hashed_colorbar, values_range)
-    get_value_vec = np.vectorize(get_value)
-
-    return get_value_vec(img_hashed)
-
-
-def get_valuemap_fname(s: pd.Series) -> str:
-    return (
-        s[cst.COL_SCREENSHOTS_FNAME].replace("screen", "values").replace("png", "npy")
-    )
+    for hashed_col, vmin, vmax in zip(
+        ordered_hashed_colors[1:-1], scale_range[:-1], scale_range[1:]
+    ):
+        hashedcol2value[hashed_col] = (vmax + vmin) / 2
+    return hashedcol2value
 
 
-def craft_title(variable, season, **kwargs):
-    return f"Map for var={variable} during {season}"
+def get_hashedcol2values_fn(ordered_hashed_colors, scale_range):
+    hashing_dict = get_hashedcol2values_dict(ordered_hashed_colors, scale_range)
+
+    def f(value):
+        return hashing_dict.get(value, np.nan)
+
+    return f
 
 
-def convert(
-    metadata_file_path: str = typer.Option(..., "-i"),
-    output_dir: str = typer.Option("data", "-o"),
+def convert(fpath, metadata):
+    im = Image.open(fpath)
+    img = np.asarray(im)
+    # get colorscale
+    colorscale = get_colorscale(im)
+    colorscale_hashed = hash1D_color(colorscale)
+    ordered_hashed_colors = get_ordered_hashed_colorscale_items(colorscale_hashed)
+    # hash the image
+    hashed_img = hash1D_color(img)
+    # convert to values
+    value_map = np.vectorize(
+        get_hashedcol2values_fn(ordered_hashed_colors, metadata.range)
+    )(hashed_img)
+    return value_map
+
+
+def craft_title(var, term, season, **kwargs):
+    return f"Map {term} term for var={var} during {season}"
+
+
+def go(
+    metadata_path: str = typer.Option(
+        "/Users/f.weber/tmp-fweber/heating/metadata.json"
+    ),
+    output_dir: str = typer.Option("/Users/f.weber/Downloads/out"),
 ):
-    log.info("Starting conversion tool to cast color maps to maps of values")
-    log.info(f"Reading from {metadata_file_path}")
-    df = pd.read_json(metadata_file_path, lines=True)
-    # appending new column for the numpy output
-    df[cst.COL_VALUE_MAP_ARRAY_FNAME] = df[cst.COL_SCREENSHOTS_FNAME].apply(
-        lambda s: s.replace("screen_", "array_").replace(".png", ".pny")
-    )
-    # appending new column for the img map output
-    df[cst.COL_VALUE_MAP_IMG_FNAME] = df[cst.COL_SCREENSHOTS_FNAME].apply(
-        lambda s: s.replace("screen_", "map_")
-    )
+    df = pd.read_json(metadata_path)
 
-    # craft output subdirs
-    array_dir = osp.join(output_dir, cst.VALUE_MAP_ARRAY_DIRECTORY)
-    os.makedirs(array_dir, exist_ok=True)
-    img_dir = osp.join(output_dir, cst.VALUE_MAP_IMG_DIRECTORY)
-    os.makedirs(img_dir, exist_ok=True)
+    array_output_subdir = osp.join(output_dir, "arrays")
+    os.makedirs(array_output_subdir, exist_ok=True)
+    maps_output_subdir = osp.join(output_dir, "maps")
+    os.makedirs(maps_output_subdir, exist_ok=True)
 
-    # loop over screenshots to convert them into value-maps
-    log.info("Converting colormaps to value-maps ...")
-    for i, data in df.iterrows():
+    col_array_output = "fpath_array"
+    col_map_output = "fpath_map"
+    output_summary = []
+
+    for fpath, metadata in df.iterrows():
+        log.info(f"Dealing with {fpath=}")
         try:
-            log.info(f"{i=} : converting {data[cst.COL_SCREENSHOTS_FNAME]}")
-            value_map = get_value_map(**data.to_dict())
-            array_fname = osp.join(
-                array_dir,
-                data[cst.COL_VALUE_MAP_ARRAY_FNAME],
-            )
-            img_fname = osp.join(
-                img_dir,
-                data[cst.COL_VALUE_MAP_IMG_FNAME],
-            )
-            with open(array_fname, "wb") as f:
+            # get value map
+            value_map = convert(fpath, metadata)
+            value_map = value_map[330:, :1200]
+            # set IO
+            fname, _ = osp.splitext(osp.basename(fpath))
+            array_output_path = osp.join(array_output_subdir, fname + ".npy")
+            maps_output_path = osp.join(maps_output_subdir, fname + ".png")
+
+            with open(array_output_path, "wb") as f:
                 np.save(f, value_map)
-                log.info(f"Serialized as array at {array_fname}")
-            with open(img_fname, "wb") as f:
+                log.info(f"Serialized as array at {array_output_path}")
+            with open(maps_output_path, "wb") as f:
                 plt.imshow(value_map)
                 plt.colorbar()
-                plt.title(craft_title(**data.to_dict()))
+                plt.title(craft_title(**metadata.to_dict()))
                 plt.savefig(f)
                 plt.close()
-                log.info(f"Serialized as array at {img_fname}")
+                log.info(f"Serialized as array at {maps_output_path}")
+
+            output_summary.append(
+                {
+                    "file": fpath,
+                    col_array_output: array_output_path,
+                    col_map_output: maps_output_path,
+                }
+            )
         except Exception as e:
+            output_summary.append(
+                {
+                    col_array_output: None,
+                    col_map_output: None,
+                }
+            )
             log.warning(f"Exception {e}")
             traceback.print_exception(e)
-
+    _df = pd.DataFrame(data=output_summary).set_index("file")
+    df = df.join(_df)
     log.info("Updating metadata")
-    df.to_json(metadata_file_path, orient="records", lines=True)
-    log.info("Done :)")
+    df.to_json(metadata_path)
 
 
 if __name__ == "__main__":
-    typer.run(convert)
+    typer.run(go)
