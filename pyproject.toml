@@ -15,6 +15,9 @@ tabulate = "^0.9.0"
 ipywidgets = "^8.1.0"
 typer = "^0.9.0"
 loguru = "^0.7.0"
+pygal-maps-fr = "^1.1.0"
+cairosvg = "^2.7.1"
+streamlit = "^1.25.0"
 
 
 [tool.poetry.group.dev.dependencies]
