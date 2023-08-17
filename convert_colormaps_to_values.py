@@ -47,8 +47,8 @@ def get_out_of_range_values(scale_range, alpha=1.5):
 def get_hashedcol2values_dict(ordered_hashed_colors, scale_range):
     m, M = get_out_of_range_values(scale_range)
     hashedcol2value = {
-        ordered_hashed_colors[0]: M,  # upper extremum out of bound
-        ordered_hashed_colors[-1]: m,  # lower extremum out of bound
+        ordered_hashed_colors[0]: m,  # upper extremum out of bound
+        ordered_hashed_colors[-1]: M,  # lower extremum out of bound
     }
     for hashed_col, vmin, vmax in zip(
         ordered_hashed_colors[1:-1], scale_range[:-1], scale_range[1:]
