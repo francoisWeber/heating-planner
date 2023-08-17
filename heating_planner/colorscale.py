@@ -26,10 +26,8 @@ def get_value_scale_from_min_max(
 
 
 def hash1D_color(colorized_map: np.ndarray) -> np.ndarray:
-    output = np.zeros_like(colorized_map[..., 0])
-    for channel_id in range(colorized_map.shape[-1]):
-        output += colorized_map[..., channel_id] * (255**channel_id)
-    return output
+    output = colorized_map * np.power(256, range(colorized_map.shape[-1]))
+    return output.sum(axis=-1)
 
 
 def get_colorsha2value(color_scale: np.ndarray, value_scale: np.ndarray) -> dict:
