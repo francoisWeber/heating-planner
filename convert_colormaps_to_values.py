@@ -9,39 +9,12 @@ from loguru import logger as log
 from matplotlib import pyplot as plt
 from PIL import Image
 
-from heating_planner.colorscale import hash1D_color
-
-
-LEFT = 1228
-TOP = 337
-RIGHT = LEFT + 1
-BOTTOM = 1493
-
-
-def get_colorscale(im: Image.Image) -> np.ndarray:
-    colorscale = np.asarray(im.crop((LEFT, TOP, RIGHT, BOTTOM)))[:, 0, :]
-    return colorscale
-
-
-def get_ordered_hashed_colorscale_items(colorscale_hashed):
-    ordered_hashed_colors = []
-    for c in colorscale_hashed:
-        # discard 0 that is black
-        if c in ordered_hashed_colors or c == 0:
-            continue
-        else:
-            ordered_hashed_colors.append(c)
-    return np.flip(ordered_hashed_colors)
-
-
-def get_out_of_range_values(scale_range, alpha=1.5):
-    m = min(scale_range)
-    M = max(scale_range)
-    segment_len = M - m
-    half = m + segment_len / 2
-    m_lower = half - (segment_len / 2) * alpha
-    M_upper = half + (segment_len / 2) * alpha
-    return (m_lower, M_upper)
+from heating_planner.colorscale import (
+    hash1D_color,
+    get_colorscale,
+    get_ordered_hashed_colorscale_items,
+    get_out_of_range_values,
+)
 
 
 def get_hashedcol2values_dict(ordered_hashed_colors, scale_range):
@@ -66,7 +39,7 @@ def get_hashedcol2values_fn(ordered_hashed_colors, scale_range):
     return f
 
 
-def convert(fpath, metadata):
+def convert(fpath, value_range, **kwargs):
     im = Image.open(fpath)
     img = np.asarray(im)
     # get colorscale
@@ -77,7 +50,7 @@ def convert(fpath, metadata):
     hashed_img = hash1D_color(img)
     # convert to values
     value_map = np.vectorize(
-        get_hashedcol2values_fn(ordered_hashed_colors, metadata.range)
+        get_hashedcol2values_fn(ordered_hashed_colors, value_range)
     )(hashed_img)
     return value_map
 
@@ -107,7 +80,7 @@ def go(
         log.info(f"Dealing with {fpath=}")
         try:
             # get value map
-            value_map = convert(fpath, metadata)
+            value_map = convert(fpath, **metadata.to_dict())
             value_map = value_map[330:, :1200]
             # set IO
             fname, _ = osp.splitext(osp.basename(fpath))
@@ -116,14 +89,14 @@ def go(
 
             with open(array_output_path, "wb") as f:
                 np.save(f, value_map)
-                log.info(f"Serialized as array at {array_output_path}")
+                log.info(f"\terialized as array at {array_output_path}")
             with open(maps_output_path, "wb") as f:
                 plt.imshow(value_map)
                 plt.colorbar()
                 plt.title(craft_title(**metadata.to_dict()))
                 plt.savefig(f)
                 plt.close()
-                log.info(f"Serialized as array at {maps_output_path}")
+                log.info(f"\tSerialized as array at {maps_output_path}")
 
             output_summary.append(
                 {
@@ -139,7 +112,7 @@ def go(
                     col_map_output: None,
                 }
             )
-            log.warning(f"Exception {e}")
+            log.warning(f"\tException {e}")
             traceback.print_exception(e)
     _df = pd.DataFrame(data=output_summary).set_index("file")
     df = df.join(_df)
@@ -148,4 +121,28 @@ def go(
 
 
 if __name__ == "__main__":
-    typer.run(go)
+    # typer.run(go)
+    fpath = "/Users/f.weber/tmp-fweber/heating/vague_chaleur/ref_nHeatWave_winter.png"
+    scale_range = [
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        26,
+        28,
+        30,
+        32,
+        34,
+        36,
+        38,
+        40,
+    ]
+    convert(fpath, scale_range)
