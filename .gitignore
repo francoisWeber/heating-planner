@@ -1,5 +1,5 @@
 # specific to project
-data/
+data*/
 
 # Created by https://www.toptal.com/developers/gitignore/api/python,macos
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,macos
@@ -210,3 +210,6 @@ poetry.toml
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python,macos
+
+# Ignore dynaconf secret files
+.secrets.*

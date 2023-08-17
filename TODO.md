@@ -1,1 +1,4 @@
-- apparently the colorscale is not preserved on `convert_maps_to_values.py` since the real colorscale within the screenshot is not fully preserved
+- prepare target "viable" values for each variable
+- use these target values to compare predictions to them and thus point out areas where target are OK
+- gather every target-compared maps in one synthetic one
+- locate 1 point on the ref map and take it as a reference
