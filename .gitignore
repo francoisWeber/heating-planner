@@ -1,3 +1,5 @@
+*.ipynb
+
 # specific to project
 data*/
 
