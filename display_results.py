@@ -7,6 +7,10 @@ import click
 import os
 import requests
 import io
+import re
+
+
+st.set_page_config(layout="wide")
 
 
 def craft_featname(variable, season):
@@ -106,7 +110,6 @@ term = "near"
 @click.option("--mask-path", type=str, default=None)
 @click.option("--hypercube-path", type=str, default=None)
 def go(metadata_path, viable_path, mask_path, hypercube_path):
-    term = st.radio("Which temporal term to display ?", options=["near", "medium"])
     # parse args
     if metadata_path is None:
         raise ValueError("Provide metadata_path")
@@ -117,9 +120,11 @@ def go(metadata_path, viable_path, mask_path, hypercube_path):
     if hypercube_path is None:
         raise ValueError("Provide hypercube_path")
 
+    if "term" not in st.session_state:
+        st.session_state["term"] = "near"
     # launch the rest
     scores, ordered_features_names, ordered_features = init(
-        term, metadata_path, viable_path, mask_path, hypercube_path
+        st.session_state.term, metadata_path, viable_path, mask_path, hypercube_path
     )
     (
         featnames_grid,
@@ -127,9 +132,6 @@ def go(metadata_path, viable_path, mask_path, hypercube_path):
         variables_unique,
         seasons_unique,
     ) = organize_features(ordered_features)
-
-    # init
-    st.title("Find your place !")
 
     for feat in ordered_features_names:
         key = "slider-" + feat
@@ -145,10 +147,17 @@ def go(metadata_path, viable_path, mask_path, hypercube_path):
         return scores * weights
 
     with st.container():
-        img_context, weights_context = st.columns([4, 2])
+        img_context, weights_context = st.columns([7, 4])
         with img_context:
-            fig, ax = plt.subplots(figsize=(10, 10))
-            plt.imshow(np.mean(get_weighted_scores(scores), -1), cmap="jet")
+            st.radio(
+                "Which temporal term to display ?",
+                options=["near", "medium"],
+                key="term",
+            )
+            fig, ax = plt.subplots(figsize=(8, 8))
+            weighted_scores = get_weighted_scores(scores)
+            agg_weighted_score = np.mean(weighted_scores, -1)
+            plt.imshow(agg_weighted_score, cmap="jet")
             plt.colorbar()
             plt.grid(which="both", alpha=0.5)
             _ = plt.xticks(ticks=np.arange(0, scores.shape[1], step=20))
@@ -170,7 +179,55 @@ def go(metadata_path, viable_path, mask_path, hypercube_path):
                         st.slider(variable, 0, 5, 1, step=1, key=f"slider-{feat}")
 
     with st.container():
-        a = st.text_input("give some coordinates to check")
+        st.divider()
+        coords_str = st.text_input(
+            "give some coordinates to explain their score, format (x, y), (z, t)",
+        )
+        coords_re = re.compile("\(\d+,[ ]*\d+\)")
+        coords = coords_re.findall(coords_str)
+        if len(coords) > 0:
+            coords = [[int(el) for el in coord[1:-1].split(",")] for coord in coords]
+            # now explain the score for every locations
+            penalties_per_loc = np.array(
+                [weighted_scores[*loc_xy, :] for loc_xy in coords]
+            )
+
+            feats_nonzeros_id = np.where(np.linalg.norm(penalties_per_loc, axis=0))[0]
+            penalties_per_loc_nz = penalties_per_loc.T[feats_nonzeros_id, :]
+            feats_nz = np.array(ordered_features_names)[feats_nonzeros_id]
+
+            fig, ax = plt.subplots(figsize=(15, 6))
+            NUM_COLORS = len(feats_nz)
+            cm = plt.get_cmap("gist_rainbow")
+            ax.set_prop_cycle(
+                color=[cm(1.0 * i / NUM_COLORS) for i in range(NUM_COLORS)]
+            )
+            prev_h_neg = np.zeros(len(coords))
+            ticks = range(len(coords))
+            for penalty, feat in zip(penalties_per_loc_nz, feats_nz):
+                penalty_neg_part = np.where(penalty < 0, penalty, 0.0)
+                if "summer" in feat:
+                    hatch = "/"
+                elif "winter" in feat:
+                    hatch = "//"
+                elif "spring" in feat:
+                    hatch = "x"
+                else:
+                    hatch = ":"
+                _ = plt.bar(
+                    x=ticks,
+                    height=penalty_neg_part,
+                    label=feat,
+                    bottom=prev_h_neg,
+                    hatch=hatch,
+                )
+                prev_h_neg += penalty_neg_part
+            _ = plt.legend(bbox_to_anchor=(1.05, 1.0), loc="upper left")
+            _ = plt.tight_layout()
+            _ = plt.xticks(ticks=ticks, labels=[str(coord) for coord in coords])
+            _ = plt.grid(axis="y")
+            _ = plt.title("Interprétation des scores pondérés")
+            st.pyplot(fig)
 
 
 if __name__ == "__main__":

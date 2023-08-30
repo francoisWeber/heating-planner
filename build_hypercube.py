@@ -15,9 +15,8 @@ def go(
     df = pd.read_json(metadata_path)
 
     slices = [np.load(fpath) for fpath in df.fpath_array]
-    slices = [np.expand_dims(slice_, axis=-1) for slice_ in slices]
     log.info(f"Gathered {len(slices)} maps")
-    hypercube = np.concatenate(slices, axis=-1)
+    hypercube = np.stack(slices, -1)
 
     np.save(output_path, hypercube)
 
