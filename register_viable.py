@@ -1,3 +1,4 @@
+from typing import List
 from matplotlib import pyplot as plt
 import streamlit as st
 from glob import glob
@@ -7,30 +8,15 @@ import numpy as np
 from heating_planner.geocoding import get_xy_map_coords_of_place
 from heating_planner.map_handling import get_np_subgrid_from_xy_coords
 
-st.title("Give your run a label !")
+st.title("Set viable variable ranges !")
 
 
 INPUT_PATH = "/Users/f.weber/tmp-fweber/heating/metadata.json"
-OUTPUT_PATH = "/Users/f.weber/tmp-fweber/heating/viable_ranges.json"
+OUTPUT_PATH = "/Users/f.weber/tmp-fweber/heating/viable_ranges2.json"
 
 
 def gather(questions, st_questions):
     return {question["id"]: answer for question, answer in zip(questions, st_questions)}
-
-
-def list_files(metadata_path):
-    sorting_key = lambda d: d["index"]
-    df = pd.read_json(metadata_path)
-    # restrict to ref data only
-    df = df[df.term == "ref"]
-    ls = sorted(df.reset_index().to_dict(orient="records"), key=sorting_key)
-    if st.session_state.previous_data is None:
-        return ls
-    else:
-        already_done = {entry["index"] for entry in st.session_state.previous_data}
-        st.session_state.idx = len(already_done)
-        remaining_index = set([entry["index"] for entry in ls]).difference(already_done)
-        return list(already_done) + [l for l in ls if l["index"] in remaining_index]
 
 
 def maybe_load_previous_data(path) -> list:
@@ -40,23 +26,42 @@ def maybe_load_previous_data(path) -> list:
         return None
 
 
+def load_metadata(input_path) -> List[dict]:
+    df = pd.read_json(input_path)
+    metadata = df[df.term == "ref"].to_dict(orient="records")
+    return metadata
+
+
+def prepare_data_to_analyse(input_path, previous_data: List[dict] = None):
+    metadata = load_metadata(input_path)
+    if previous_data is None:
+        return metadata
+    # else
+    parsed_index = set([m["index"] for m in previous_data])
+    metadata = [m for m in metadata if m["index"] not in parsed_index]
+    return sorted(metadata, key=lambda m: m["variable"] + "-" + m["season"])
+
+
 if "idx" not in st.session_state:
     st.session_state.idx = 0
+
 
 if "previous_data" not in st.session_state:
     st.session_state.previous_data = maybe_load_previous_data(OUTPUT_PATH)
 
-if "files_paths" not in st.session_state:
-    st.session_state.maps_data = list_files(INPUT_PATH)
+if "metadata" not in st.session_state:
+    st.session_state.metadata = prepare_data_to_analyse(
+        INPUT_PATH, st.session_state.previous_data
+    )
 
-if "current_map_data" not in st.session_state:
-    st.session_state.current_map_data = None
+if "registered_infos" not in st.session_state:
+    st.session_state.registered_infos = []
+
+if "current_metadata" not in st.session_state:
+    st.session_state.current_metadata = None
 
 if "max_id" not in st.session_state:
-    st.session_state.max_id = len(st.session_state.maps_data)
-
-if "data_infos" not in st.session_state:
-    st.session_state.data_infos = []
+    st.session_state.max_id = len(st.session_state.metadata)
 
 if "map_min_value" not in st.session_state:
     st.session_state.map_min_value = 0
@@ -76,8 +81,6 @@ if "ref_locations" not in st.session_state:
 
 
 # constants
-ref_cities = ["Strasbourg, Chaise-Dieu-du-Theil"]
-
 ref_locations = {
     "Strasbourg": {"xy": (304.3843143057161, 1026.3990127117725)},
     "chaise-dieu-du-theil": {"xy": (283.0154188458886, 460.6224280954779)},
@@ -85,20 +88,20 @@ ref_locations = {
 
 
 def craft_title(term, variable, season, **kwargs):
-    return f"{term}-term map of {variable} during {season}"
+    return f"map of {variable} during {season}"
 
 
 def save():
-    df = pd.DataFrame(data=st.session_state.data_infos)
+    df = pd.DataFrame(data=st.session_state.registered_infos)
     df.to_json(OUTPUT_PATH)
 
 
 def push():
-    st.session_state.data_infos.append(
+    st.session_state.registered_infos.append(
         {
             "optimal_range": st.session_state.slider_values,
             "optimal_direction": st.session_state.general_choice,
-            "index": st.session_state.current_map_data["index"],
+            **st.session_state.current_metadata,
         }
     )
 
@@ -117,22 +120,6 @@ def on_click():
     get_next_item()
 
 
-def extract_values_from_ref_and_mask(map, ref_loc_xy):
-    this_variables_values = {}
-    mask_xx = []
-    mask_yy = []
-    for loc, data in ref_loc_xy.items():
-        xx, yy = get_np_subgrid_from_xy_coords(*data["xy"], w=3)
-        this_variables_values[loc] = map[xx, yy].ravel()
-        # keep this mask
-        mask_xx += xx
-        mask_yy += yy
-
-    map_masked = map.copy()
-    map_masked[mask_xx, mask_yy] = np.nan
-    return this_variables_values, map_masked
-
-
 bar_context, figure_context = st.columns([2, 1])
 with bar_context:
     st.progress(st.session_state.idx / st.session_state.max_id)
@@ -145,32 +132,32 @@ with figure_context:
 image_context, form_context = st.columns([3, 1])
 
 with st.form("form", clear_on_submit=True):
-    st.session_state.current_map_data = st.session_state.maps_data[st.session_state.idx]
+    st.session_state.current_metadata = st.session_state.metadata[st.session_state.idx]
     st.session_state.current_map = np.load(
-        st.session_state.current_map_data["fpath_array"]
+        st.session_state.current_metadata["fpath_array"]
     )
     with image_context:
-        this_variables_values, map_masked = extract_values_from_ref_and_mask(
-            st.session_state.current_map, ref_locations
-        )
         fig, ax = plt.subplots(figsize=(10, 7))
-        alpha = 0.75
-        log = True
-        bin_h, bins, _ = ax.hist(
-            map_masked.ravel(), label="global", density=False, alpha=alpha, log=log
+        bin_h, bin_v, bars = ax.hist(
+            st.session_state.current_map.ravel(), log=True, bins=15
         )
-        for loc, values in this_variables_values.items():
-            aera_n_points = len(values)
-            ax.hist(
-                np.repeat(values, int(max(bin_h) / aera_n_points)),
-                label=loc,
-                density=False,
-                alpha=1,
-                log=log,
-            )
+        bins_to_highlight = []
+        for city, loc in ref_locations.items():
+            h, v = loc["xy"]
+            h = int(h) // 5
+            v = int(v) // 5
+            city_val = st.session_state.current_map[h, v]
+            id = np.where(bin_v <= city_val)[0][-1]
+            bins_to_highlight.append(id)
+        bins_to_highlight = set(bins_to_highlight)
+        if len(bins_to_highlight) == 2:
+            bars[min(bins_to_highlight)].set_facecolor("green")
+            bars[max(bins_to_highlight)].set_facecolor("red")
+        else:
+            bars[max(bins_to_highlight)].set_facecolor("orange")
         plt.legend()
         plt.grid()
-        plt.title(craft_title(**st.session_state.current_map_data))
+        plt.title(craft_title(**st.session_state.current_metadata))
 
         st.pyplot(fig)
         st.session_state.map_min_value = np.nanmin(st.session_state.current_map)
@@ -188,6 +175,7 @@ with st.form("form", clear_on_submit=True):
             st.session_state.map_max_value,
             (st.session_state.map_min_value, st.session_state.map_max_value),
             key="slider_values",
+            step=0.5,
         )
 
     submitted = st.form_submit_button("go", on_click=on_click)
