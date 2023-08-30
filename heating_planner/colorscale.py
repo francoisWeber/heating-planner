@@ -55,7 +55,9 @@ def get_hashedcol2values_fn(ordered_hashed_colors, scale_range):
     return f
 
 
-def convert(fpath, values, resize_factor=None, **kwargs):
+def convert(
+    fpath, values, resize_factor=None, v_min=TOP, v_max=BOTTOM, h_min=LEFT, **kwargs
+):
     im = Image.open(fpath)
     if resize_factor and resize_factor > 1:
         im = im.resize(
@@ -64,9 +66,9 @@ def convert(fpath, values, resize_factor=None, **kwargs):
         )
     img = np.asarray(im, dtype=np.float16)
     # get colorscale
-    v_min = TOP // (resize_factor if resize_factor else 1) + 1
-    v_max = BOTTOM // (resize_factor if resize_factor else 1)
-    h_min = LEFT // (resize_factor if resize_factor else 1)
+    v_min = v_min // (resize_factor if resize_factor else 1) + 1
+    v_max = v_max // (resize_factor if resize_factor else 1)
+    h_min = h_min // (resize_factor if resize_factor else 1)
     h_max = h_min + 1
     colorscale = img[v_min:v_max, h_min:h_max][:, 0, :]
     # hash it
