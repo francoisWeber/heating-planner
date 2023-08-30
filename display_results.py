@@ -5,10 +5,18 @@ import numpy as np
 from heating_planner import value_comparison
 import click
 import os
+import requests
+import io
 
 
 def craft_featname(variable, season):
     return f"{variable} during {season}"
+
+
+def load_np_from_url(url):
+    response = requests.get(url)
+    response.raise_for_status()
+    return np.load(io.BytesIO(response.content))
 
 
 @st.cache_data
@@ -21,7 +29,6 @@ def init(
 ):
     df_metadata = pd.read_json(df_metadata_path).reset_index()
     df_viable = pd.read_json(df_viable_path)
-    mask = np.load(mask_path)
 
     df_term = df_metadata[df_metadata.term == term]
 
@@ -31,17 +38,20 @@ def init(
         "more is better": value_comparison.upper_better_delta_normalized,
     }
 
+    # special tool to load npy from URL
     if os.path.isfile(hypercube_path):
         hypercube = np.load(hypercube_path)
     elif hypercube_path.startswith("http"):
-        import requests
-        import io
-
-        response = requests.get(hypercube_path)
-        response.raise_for_status()
-        hypercube = np.load(io.BytesIO(response.content))
+        hypercube = load_np_from_url(hypercube_path)
     else:
         raise ValueError(f"No valid data for {hypercube_path=}")
+
+    if os.path.isfile(mask_path):
+        mask = np.load(mask_path)
+    elif mask_path.startswith("http"):
+        mask = load_np_from_url(mask_path)
+    else:
+        raise ValueError(f"No valid data for {mask_path=}")
 
     # build the un-weighted scores
     ordered_scores = []
