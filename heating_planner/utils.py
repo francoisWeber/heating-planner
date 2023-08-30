@@ -1,6 +1,8 @@
 import hashlib
 
 import numpy as np
+import requests
+import io
 
 
 def sha(*args):
@@ -16,3 +18,9 @@ def softdict_assignation(
     """Soft dict from hashed colors to measured values"""
     v = factor / np.abs(keys - query)
     return np.sum(np.exp(v) / np.exp(v).sum() * values)
+
+
+def load_np_from_url(url):
+    response = requests.get(url)
+    response.raise_for_status()
+    return np.load(io.BytesIO(response.content))
