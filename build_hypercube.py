@@ -6,13 +6,13 @@ from loguru import logger as log
 
 def go(
     metadata_path: str = typer.Option(
-        "/Users/f.weber/tmp-fweber/heating/metadata.json"
+        "/Users/f.weber/tmp-fweber/heating/metadata2.json"
     ),
     metadata_aux_path: str = typer.Option(
-        "/Users/f.weber/tmp-fweber/heating/metadata_aux.json"
+        "/Users/f.weber/tmp-fweber/heating/metadata_aux2.json"
     ),
     output_path: str = typer.Option(
-        "/Users/f.weber/tmp-fweber/heating/processed/hypercube2.npz"
+        "/Users/f.weber/tmp-fweber/heating/processed/hypercube3.npz"
     ),
 ):
     # primary data

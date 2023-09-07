@@ -16,14 +16,17 @@ def craft_featname(variable, season):
 def init(
     term,
     df_metadata_path,
+    metadata_aux_path,
     df_viable_path,
     mask_path,
     hypercube_path,
 ):
     df_metadata = pd.read_json(df_metadata_path).reset_index()
+    df_metadata_aux = pd.read_json(metadata_aux_path).reset_index()
     df_viable = pd.read_json(df_viable_path)
 
     df_term = df_metadata[df_metadata.term == term]
+    df_term_aux = df_metadata_aux[df_metadata_aux.term == term]
 
     direction2delta_fn = {
         "neutral": value_comparison.neutral_delta_normalized,
@@ -33,11 +36,13 @@ def init(
 
     # special tool to load npy from URL
     if os.path.isfile(hypercube_path):
-        hypercube = np.load(hypercube_path)
+        hypercubes = np.load(hypercube_path)
     elif hypercube_path.startswith("http"):
-        hypercube = load_np_from_url(hypercube_path)
+        hypercubes = load_np_from_url(hypercube_path)
     else:
         raise ValueError(f"No valid data for {hypercube_path=}")
+    hypercube = hypercubes["map"]
+    hypercube_aux = hypercubes["aux"]
 
     if os.path.isfile(mask_path):
         mask = np.load(mask_path)
@@ -52,20 +57,52 @@ def init(
     ordered_features = []
     for index, metadata in df_term.iterrows():
         map = hypercube[:, :, index] * mask
-        ref_values = df_viable[
-            (df_viable.season == metadata.season)
-            & (df_viable.variable == metadata.variable)
-        ].iloc[0]
-        compare_fn = direction2delta_fn[ref_values.optimal_direction]
-        score_on_map = compare_fn(map, *ref_values.optimal_range)
+        try:
+            ref_values = df_viable[
+                (df_viable.season == metadata.season)
+                & (df_viable.variable == metadata.variable)
+            ].iloc[0]
+            opt_direction = ref_values.optimal_direction
+            opt_ranges = ref_values.optimal_range
+        except:
+            opt_direction = "neutral"
+            opt_ranges = [0.0, 0.0]
+        compare_fn = direction2delta_fn[opt_direction]
+        score_on_map = compare_fn(map, *opt_ranges)
         ordered_scores.append(score_on_map)
         ordered_features.append([metadata.variable, metadata.season])
         ordered_features_names.append(
             craft_featname(metadata.variable, metadata.season)
         )
+    scores = np.stack(ordered_scores, -1)
+
+    # ad aux parts
+    map_estate = None
+    for i, metadata in df_metadata_aux.iterrows():
+        # TODO: register viable ranges and trend for aux variables
+        if "seaLevelElevation" == metadata.variable:
+            # upper is better, like scores
+            map = hypercube_aux[:, :, i]
+            # normalize map based on current scores
+            map = (map - np.nanmin(map)) / (np.nanmax(map) - np.nanmin(map))
+            map = map * np.nanmax(np.abs(scores))
+            ordered_scores.append(map)
+            ordered_features_names.append(
+                craft_featname(metadata.variable, metadata.season)
+            )
+            ordered_features.append([metadata.variable, metadata.season])
+
+        elif "realEstate" in metadata.variable:
+            map_estate = hypercube_aux[:, :, i]
+            continue
 
     scores = np.stack(ordered_scores, -1)
-    return scores, np.array(ordered_features_names), np.array(ordered_features)
+    return (
+        scores,
+        np.array(ordered_features_names, dtype="<U50"),
+        np.array(ordered_features),
+        map_estate,
+    )
 
 
 @st.cache_data
@@ -77,17 +114,17 @@ def organize_features(ordered_features):
     seasons_unique = np.unique(season_feats.T[1]).astype("str")
     seasons_id, variables_id = np.meshgrid(seasons_unique, variables_unique)
     featnames_grid = np.apply_along_axis(
-        lambda a: np.array(craft_featname(*a), dtype="<U28"),
+        lambda a: np.array(craft_featname(*a), dtype="<U50"),
         axis=-1,
         arr=np.stack((variables_id, seasons_id), -1),
     )
     anno_featnames_line = np.apply_along_axis(
-        lambda a: craft_featname(*a), -1, anno_feats
+        lambda a: np.array(craft_featname(*a), dtype="<U50"), -1, anno_feats
     )
     return featnames_grid, anno_featnames_line, variables_unique, seasons_unique
 
 
-def display(metadata_path, viable_path, mask_path, hypercube_path):
+def display(metadata_path, metadata_aux_path, viable_path, mask_path, hypercube_path):
     # parse args
     if metadata_path is None:
         raise ValueError("Provide metadata_path")
@@ -101,8 +138,13 @@ def display(metadata_path, viable_path, mask_path, hypercube_path):
     if "term" not in st.session_state:
         st.session_state["term"] = "near"
     # launch the rest
-    scores, ordered_features_names, ordered_features = init(
-        st.session_state.term, metadata_path, viable_path, mask_path, hypercube_path
+    scores, ordered_features_names, ordered_features, map_estate = init(
+        st.session_state.term,
+        metadata_path,
+        metadata_aux_path,
+        viable_path,
+        mask_path,
+        hypercube_path,
     )
     (
         featnames_grid,
@@ -127,24 +169,38 @@ def display(metadata_path, viable_path, mask_path, hypercube_path):
     with st.container():
         img_context, weights_context = st.columns([7, 4])
         with img_context:
-            st.radio(
-                "Which temporal term to display ?",
-                options=["near", "medium"],
-                key="term",
-            )
+            radio_dividers = st.columns(2)
+            with radio_dividers[0]:
+                st.radio(
+                    "Which temporal term to display ?",
+                    options=["near", "medium"],
+                    key="term",
+                )
+            with radio_dividers[1]:
+                st.toggle(
+                    "Activate real estate if possible?",
+                    value=True,
+                    key="includeReadlEstate",
+                )
             fig, ax = plt.subplots(figsize=(8, 8))
             weighted_scores = get_weighted_scores(scores)
             agg_weighted_score = np.mean(weighted_scores, -1)
+            title_suffix = ""
+            if map_estate is not None and st.session_state.includeReadlEstate:
+                agg_weighted_score /= map_estate
+                title_suffix = " by estate price"
+            agg_weighted_score -= np.nanmin(agg_weighted_score)
+            agg_weighted_score /= np.nanmax(agg_weighted_score)
             plt.imshow(agg_weighted_score, cmap="jet")
             plt.colorbar()
             plt.grid(which="both", alpha=0.5)
             _ = plt.xticks(ticks=np.arange(0, scores.shape[1], step=20))
             _ = plt.yticks(ticks=np.arange(0, scores.shape[0], step=20))
-            st.caption("Global weighted score map")
+            st.caption("Global weighted score map" + title_suffix)
             st.pyplot(fig)
 
         with weights_context:
-            st.text("Set eights for the considered variables")
+            st.text("Set weights for the considered variables")
             for feat in anno_featnames_line:
                 st.slider(f"{feat}", 0, 5, 1, step=1, key=f"slider-{feat}")
             # then split in 4 col, one per season

@@ -11,8 +11,8 @@ from heating_planner.map_handling import get_np_subgrid_from_xy_coords
 st.title("Set viable variable ranges !")
 
 
-INPUT_PATH = "/Users/f.weber/tmp-fweber/heating/metadata.json"
-OUTPUT_PATH = "/Users/f.weber/tmp-fweber/heating/viable_ranges2.json"
+input_path = "/Users/f.weber/tmp-fweber/heating/metadata.json"
+output_path = "/Users/f.weber/tmp-fweber/heating/viable_ranges2.json"
 
 
 def gather(questions, st_questions):
@@ -47,11 +47,11 @@ if "idx" not in st.session_state:
 
 
 if "previous_data" not in st.session_state:
-    st.session_state.previous_data = maybe_load_previous_data(OUTPUT_PATH)
+    st.session_state.previous_data = maybe_load_previous_data(output_path)
 
 if "metadata" not in st.session_state:
     st.session_state.metadata = prepare_data_to_analyse(
-        INPUT_PATH, st.session_state.previous_data
+        input_path, st.session_state.previous_data
     )
 
 if "registered_infos" not in st.session_state:
@@ -76,10 +76,6 @@ if "current_map" not in st.session_state:
     st.session_state.current_map = 0
 
 
-if "ref_locations" not in st.session_state:
-    st.session_state.ref_locations = None
-
-
 # constants
 ref_locations = {
     "Strasbourg": {"xy": (304.3843143057161, 1026.3990127117725)},
@@ -93,7 +89,7 @@ def craft_title(term, variable, season, **kwargs):
 
 def save():
     df = pd.DataFrame(data=st.session_state.registered_infos)
-    df.to_json(OUTPUT_PATH)
+    df.to_json(output_path)
 
 
 def push():

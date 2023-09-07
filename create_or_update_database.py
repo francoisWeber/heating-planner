@@ -33,15 +33,18 @@ def craft_title(variable, term, season, **kwargs):
 
 
 def go(
-    input_location: str = typer.Option("/Users/f.weber/tmp-fweber/heating/raw_data/"),
+    input_location: str = typer.Option("/Users/f.weber/tmp-fweber/heating/raw_data"),
     metadata_path: str = typer.Option(
-        "/Users/f.weber/tmp-fweber/heating/metadata.json"
+        "/Users/f.weber/tmp-fweber/heating/metadata2.json"
     ),
     output_dir: str = typer.Option("/Users/f.weber/tmp-fweber/heating/processed/"),
     force: bool = typer.Option(False),
     resize_factor: int = typer.Option(5),
 ):
-    previous_df = pd.read_json(metadata_path) if osp.isfile(metadata_path) else None
+    input_location = osp.expanduser(input_location)
+    metadata_path = osp.expanduser(metadata_path)
+    output_dir = osp.expanduser(output_dir)
+    df = pd.read_json(metadata_path) if osp.isfile(metadata_path) else None
 
     if osp.isfile(input_location):
         input_files = [input_location]
@@ -66,7 +69,7 @@ def go(
         log.info(f"Dealing with {input_file=}")
         try:
             # check if we already have it
-            if previous_df is not None and input_file in previous_df.index:
+            if df is not None and input_file in df.index:
                 if force:
                     index_to_drop.append(input_file)
                 else:
@@ -109,10 +112,13 @@ def go(
             traceback.print_exception(e)
     # backup metadata
     if len(output_summary) > 0:
-        df = pd.DataFrame(data=output_summary).set_index("file")
-        if previous_df:
-            df = pd.concat((df, previous_df), axis=0)
-        log.info("Updating metadata")
+        df_new = pd.DataFrame(data=output_summary).set_index("file")
+        if df is not None:
+            df = pd.concat([df, df_new])
+            log.info("Updating metadata")
+        else:
+            df = df_new
+            log.info("Creating metadata")
         df.to_json(metadata_path)
     log.info("Done :)")
 

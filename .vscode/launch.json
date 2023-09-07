@@ -1,0 +1,27 @@
+{
+    // Utilisez IntelliSense pour en savoir plus sur les attributs possibles.
+    // Pointez pour afficher la description des attributs existants.
+    // Pour plus d'informations, visitez : https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Streamlit expose",
+            "type": "python",
+            "request": "launch",
+            "program": "/Users/f.weber/Library/Caches/pypoetry/virtualenvs/heating-planner-0vdFuNqk-py3.11/lib/python3.11/site-packages/streamlit",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "HEAT_METADATA_PATH": "https://cloud.fweber.fr/index.php/s/yiPB89kg9PWpY9G/download",
+                "HEAT_METADATA_AUX_PATH": "https://cloud.fweber.fr/index.php/s/Myts62Pqwi52dS7/download",
+                "HEAT_VIABLE_PATH": "https://cloud.fweber.fr/index.php/s/zejNK2ceTtDXLkG/download",
+                "HEAT_MASK_PATH": "https://cloud.fweber.fr/index.php/s/87eT4zyBjWcBdfR/download",
+                "HEAT_HYPERCUBE_PATH": "https://cloud.fweber.fr/index.php/s/roa3NmqEj3A4HNK/download",
+            },
+            "args": [
+                "run",
+                "display_results.py"
+            ]
+        }
+    ]
+}
