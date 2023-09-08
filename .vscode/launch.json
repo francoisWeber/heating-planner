@@ -12,6 +12,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "env": {
+                "HEAT_BASEMAP_PATH": "https://cloud.fweber.fr/index.php/s/KMqJKeE3DcPsatP/download",
                 "HEAT_METADATA_PATH": "https://cloud.fweber.fr/index.php/s/yiPB89kg9PWpY9G/download",
                 "HEAT_METADATA_AUX_PATH": "https://cloud.fweber.fr/index.php/s/Myts62Pqwi52dS7/download",
                 "HEAT_VIABLE_PATH": "https://cloud.fweber.fr/index.php/s/zejNK2ceTtDXLkG/download",

@@ -83,7 +83,6 @@ def init(
     # ad aux parts
     map_estate = None
     for i, metadata in df_metadata_aux.iterrows():
-        # TODO: register viable ranges and trend for aux variables
         if "seaLevelElevation" == metadata.variable:
             # upper is better, like scores
             map = hypercube_aux[:, :, i]
