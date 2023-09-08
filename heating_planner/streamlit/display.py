@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from heating_planner import value_comparison
+from heating_planner.streamlit import io
 import os
 import re
 from heating_planner.utils import load_np_from_url
@@ -20,6 +21,7 @@ def init(
     df_viable_path,
     mask_path,
     hypercube_path,
+    map_clicked_xy,
 ):
     df_metadata = pd.read_json(df_metadata_path).reset_index()
     df_metadata_aux = pd.read_json(metadata_aux_path).reset_index()
@@ -67,6 +69,8 @@ def init(
         except:
             opt_direction = "neutral"
             opt_ranges = [0.0, 0.0]
+        if map_clicked_xy is not None:
+            opt_ranges = [map[map_clicked_xy["y"] // 5, map_clicked_xy["x"] // 5]] * 2
         compare_fn = direction2delta_fn[opt_direction]
         score_on_map = compare_fn(map, *opt_ranges)
         ordered_scores.append(score_on_map)
@@ -135,9 +139,16 @@ def display(metadata_path, metadata_aux_path, viable_path, mask_path, hypercube_
     if hypercube_path is None:
         raise ValueError("Provide hypercube_path")
 
+    if "ref_point_comparison" not in st.session_state:
+        st.session_state["ref_point_comparison"] = True
+
     if "term" not in st.session_state:
         st.session_state["term"] = "near"
     # launch the rest
+    if st.session_state.ref_point_comparison:
+        xy = st.session_state.map_clicked_xy
+    else:
+        xy = None
     scores, ordered_features_names, ordered_features, map_estate = init(
         st.session_state.term,
         metadata_path,
@@ -145,6 +156,7 @@ def display(metadata_path, metadata_aux_path, viable_path, mask_path, hypercube_
         viable_path,
         mask_path,
         hypercube_path,
+        xy,
     )
     (
         featnames_grid,
@@ -181,6 +193,11 @@ def display(metadata_path, metadata_aux_path, viable_path, mask_path, hypercube_
                     "Activate real estate if possible?",
                     value=True,
                     key="includeReadlEstate",
+                )
+                st.toggle(
+                    "Compare to reference point is selected?",
+                    value=True,
+                    key="ref_point_comparison",
                 )
             fig, ax = plt.subplots(figsize=(8, 8))
             weighted_scores = get_weighted_scores(scores)

@@ -19,6 +19,7 @@ watchdog = "^3.0.0"
 click = "^8.1.7"
 matplotlib = "^3.7.2"
 ipykernel = "^6.25.1"
+streamlit-image-coordinates = "^0.1.6"
 
 
 [tool.poetry.group.dev.dependencies]
