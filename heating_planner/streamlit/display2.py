@@ -4,94 +4,34 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from heating_planner import value_comparison
-from heating_planner.streamlit import io
-from heating_planner import utils
-from heating_planner.utils import load_np_from_anywhere
-from enum import Enum
+from heating_planner.streamlit.tools.selectors import Selector
+from heating_planner.streamlit.tools.utils import (
+    maybe_add_to_session_state,
+    load_json,
+    text_center,
+)
+from heating_planner.utils import load_np_from_anywhere, minmax_bounding
+from textwrap import wrap
 
-COMPARISON_TYPE_OPTIONS = ["map", "point"]
+
+COMPARISON_TYPE_OPTIONS = ["map", "point", "optimal ranges"]
 WEIGHT_PREFIX = "weight!"
-REF_POINT_LOCATION_KEY = "map_clicked_xy"
 TERM_SELECTOR_KEY = "term_selector_key"
 REAL_ESTATE_TOGGLE_KEY = "real_estate_toggle_key"
+SEALEVEL_TOGGLE_KEY = "sea_level_toggle_key"
 REF_POINT_TOGGLE_KEY = "ref_point_toggle_key"
 COMPARISON_TYPE_SELECTOR_KEY = "comparison_kind_key"
-INTELLIGENT_COMPARISON_TOGGLE_KEY = "intelligent_comparison"
-ComparisonType = Enum("Compare wrt", COMPARISON_TYPE_OPTIONS)
-
-
-## Comparators
-def comparison_neutral_delta(value_minus_reference, normalize=True):
-    delta_compared = -np.abs(value_minus_reference)
-    if normalize:
-        delta_compared /= np.nanstd(delta_compared)
-    return delta_compared
-
-
-def comparison_upper_better_delta(value_minus_reference, decay=0.1, normalize=True):
-    delta_compared = np.where(
-        value_minus_reference > 0, value_minus_reference * decay, value_minus_reference
-    )
-    if normalize:
-        delta_compared /= np.nanstd(delta_compared)
-    return delta_compared
-
-
-def comparison_lower_better_delta(value_minus_reference, decay=0.1, normalize=True):
-    return comparison_upper_better_delta(
-        -value_minus_reference, decay=decay, normalize=normalize
-    )
+SMART_COMPARISON_TOGGLE_KEY = "intelligent_comparison"
+MAP_CLICKED_POSITION_KEY = "map_clicked_xy"
 
 
 ## ST stuff and other
 
 
-def maybe_add_to_session_state(key, value, force=False):
-    if key not in st.session_state or force:
-        st.session_state[key] = value
-
-
-def metadata2featurename(variable, season, prefix=None):
-    infos = [prefix] if prefix else []
-    infos += [variable, season]
-    return "_".join(infos)
-
-
 def serie2featurename(meta: pd.Series, prefix=None):
-    return metadata2featurename(meta.variable, meta.season, prefix=prefix)
-
-
-class Selector:
-    def __init__(
-        self,
-        key,
-        label,
-        values: List | bool | None = None,
-        default=None,
-        is_toggle=False,
-    ) -> None:
-        self.label = label
-        if values is None and not is_toggle:
-            raise ValueError("Values must be set")
-        self.values = values
-        self.default = default if default else 0
-        self.key = key
-        self.is_toggle = is_toggle
-        maybe_add_to_session_state(self.key, self.default)
-
-    def get_st_object(self):
-        if self.is_toggle:
-            st.toggle(label=self.label, value=self.default, key=self.key)
-        else:
-            try:
-                st.radio(
-                    label=self.label,
-                    options=self.values,
-                    index=0,
-                    key=self.key,
-                )
-            except:
-                st.text(self.label)
+    infos = [prefix] if prefix else []
+    infos += [meta.variable, meta.season]
+    return "_".join(infos)
 
 
 SELECTORS = [
@@ -107,32 +47,28 @@ SELECTORS = [
         values=COMPARISON_TYPE_OPTIONS,
         default="map",
     ),
-    Selector(key=REAL_ESTATE_TOGGLE_KEY, label="Include real estate ?", is_toggle=True),
     Selector(
-        key=INTELLIGENT_COMPARISON_TOGGLE_KEY,
-        label="Do intelligent comparison ?",
+        key=SMART_COMPARISON_TOGGLE_KEY,
+        label="Do smart comparison ?",
         is_toggle=True,
         default=True,
+    ),
+    Selector(
+        key=REAL_ESTATE_TOGGLE_KEY,
+        refers_to_variable="realEstate",
+        label="Include real estate ?",
+        is_toggle=True,
+    ),
+    Selector(
+        key=SEALEVEL_TOGGLE_KEY,
+        refers_to_variable="seaLevelElevation",
+        label="Include sea elevation ?",
+        is_toggle=True,
     ),
 ]
 
 
-@st.cache_data
-def load_json(df_path, **kwargs):
-    return pd.read_json(df_path, **kwargs)
-
-
-@st.cache_data
-def load_csv(df_path, **kwargs):
-    return pd.read_csv(df_path, **kwargs)
-
-
-@st.cache_data
-def load_numpy(npx_path):
-    return load_np_from_anywhere(npx_path)
-
-
-@st.cache_data
+@st.cache_resource(show_spinner="loading maps ...")
 def load_hypercubes(hypercubes_path):
     hypercubes = load_np_from_anywhere(hypercubes_path)
     return hypercubes["map"], hypercubes["aux"]
@@ -151,7 +87,7 @@ def init_weights(df: pd.DataFrame, value=1, force=False):
 def init(metadata_path, metadata_aux_path, viable_path, hypercube_path):
     df = load_json(metadata_path)
     df_aux = load_json(metadata_aux_path)
-    df_viable = load_csv(viable_path, index_col=0)
+    df_viable = load_json(viable_path)
     hypercube, hypercube_aux = load_hypercubes(hypercube_path)
     df_concat = pd.concat([df, df_aux])
     init_weights(df_concat)
@@ -159,9 +95,9 @@ def init(metadata_path, metadata_aux_path, viable_path, hypercube_path):
 
 
 direction2function = {
-    "neutral": comparison_neutral_delta,
-    "less is better": comparison_lower_better_delta,
-    "more is better": comparison_upper_better_delta,
+    "neutral": value_comparison.comparison_neutral_delta,
+    "less is better": value_comparison.comparison_lower_better_delta,
+    "more is better": value_comparison.comparison_upper_better_delta,
 }
 
 
@@ -173,63 +109,137 @@ def gather_weights():
     return w
 
 
-def prepare_img(
+def get_delta_hypercube(
+    hypercube_term: np.ndarray,
+    reference: np.ndarray,
+    comparators_str: list,
+) -> np.ndarray:
+    comparators = [direction2function[c] for c in comparators_str]
+    term_minus_ref = np.moveaxis(hypercube_term - reference, -1, 0)
+    deltas = []
+    for delta, comparator in zip(term_minus_ref, comparators):
+        delta_compared = comparator(delta)
+        deltas.append(delta_compared)
+    delta = np.stack(deltas, axis=-1)
+    return delta
+
+
+@st.cache_data
+def get_ordered_weights(ordered_keys: list) -> np.ndarray:
+    w = np.array([st.session_state[k] for k in ordered_keys], dtype=np.float32)
+    w = np.square(w)
+    w /= w.sum()
+    return w
+
+
+@st.cache_data
+def get_delta_hypercube_cached(hypercube_term, hypercube_ref, comparators_str):
+    return get_delta_hypercube(hypercube_term, hypercube_ref, comparators_str)
+
+
+@st.cache_data
+def precompute_helpers_for_climate_score(
+    term: str,
+    df: pd.DataFrame,
+    viable_ranges: pd.DataFrame,
+    hypercube: np.ndarray,
+    smart_comparison: bool,
+):
+    ## prepare
+    df = df.reset_index(drop=True).drop(columns=[c for c in df.columns if "fpath" in c])
+    df = pd.merge(left=df.reset_index(), right=viable_ranges, sort=False)
+    df_ref = df[df.term == "ref"]
+    # external info
+    ordered_weights_keys = df_ref.apply(
+        lambda s: serie2featurename(s, WEIGHT_PREFIX), axis=1
+    ).tolist()
+    weights = get_ordered_weights(ordered_weights_keys)
+    if smart_comparison:
+        comparators_str = df_ref.optimal_direction.tolist()
+    else:
+        comparators_str = ["neutral"] * len(df_ref)
+    # separate data
+    hypercube_ref = hypercube[:, :, df_ref.index.tolist()]
+    df_term = df[df.term == term]
+    hypercube_term = hypercube[:, :, df_term.index.tolist()]
+    return df_ref, hypercube_ref, hypercube_term, comparators_str, weights
+
+
+def build_climate_score(
     term: str,
     comparison: str,
     df: pd.DataFrame,
     viable_ranges: pd.DataFrame,
     hypercube: np.ndarray,
+    smart_comparison: bool,
 ):
     ## prepare
-    df = df.reset_index(drop=True).drop(columns=[c for c in df.columns if "fpath" in c])
-    df = pd.merge(left=df.reset_index(), right=viable_ranges, sort=False)
-    # separate data
-    df_ref = df[df.term == "ref"]
-    hypercube_ref = hypercube[:, :, df_ref.index.tolist()]
-    df_term = df[df.term == term]
-    hypercube_term = hypercube[:, :, df_term.index.tolist()]
+    (
+        df_ref,
+        cube_ref,
+        cube_term,
+        comparators_str,
+        weights,
+    ) = precompute_helpers_for_climate_score(
+        term, df, viable_ranges, hypercube, smart_comparison
+    )
+    # proceed to comparison
     if comparison == "map":
-        reference = hypercube_ref
-    elif comparison == "point" and (yx := st.session_state.map_clicked_xy) is not None:
-        xy = [yx["y"] // 5, yx["x"] // 5]
-        reference = hypercube_ref[*xy, :]
+        delta = get_delta_hypercube_cached(cube_term, cube_ref, comparators_str)
+    elif comparison == "point":
+        if (yx := st.session_state[MAP_CLICKED_POSITION_KEY]) is not None:
+            xy = [yx["y"] // 5, yx["x"] // 5]
+            reference = cube_ref[*xy, :]
+            delta = get_delta_hypercube(cube_term, reference, comparators_str)
+        else:
+            st.toast(":warning: No reference point selected !")
+            delta = cube_ref
+    elif comparison == "optimal ranges":
+        optimal_ranges = np.array(df_ref.optimal_range.tolist()).T
+        delta1 = get_delta_hypercube_cached(
+            cube_term, optimal_ranges[0], comparators_str
+        )
+        delta2 = get_delta_hypercube_cached(
+            cube_term, optimal_ranges[1], comparators_str
+        )
+        delta = np.max(np.stack([delta1, delta2], axis=-1), -1)
     else:
         st.toast(f"No comparison like {comparison}")
         return np.zeros_like(hypercube[:, :, 0])
     # prepare slice-wise comparison
-    term_minus_ref = np.moveaxis(hypercube_term - reference, -1, 0)
-    deltas = []
-    weights_dict = gather_weights()
-    weights = []
-    ordered_features = []
-    for delta, (i, metadata) in zip(term_minus_ref, df_ref.iterrows()):
-        ordered_features.append(serie2featurename(metadata))
-        weight_key = serie2featurename(metadata, prefix=WEIGHT_PREFIX)
-        weights.append(weights_dict[weight_key])
-        comparator = direction2function[metadata.optimal_direction]
-        delta_compared = comparator(delta)
-        deltas.append(delta_compared)
-    delta = np.stack(deltas, axis=-1)
     return np.average(delta, axis=-1, weights=weights)
 
 
-def text_center(txt):
-    return st.markdown(
-        f'<div style="text-align: center;">{txt}</div>', unsafe_allow_html=True
-    )
+def pimp_score_with_auxiliary_data(
+    score: np.ndarray, df_aux: pd.DataFrame, hypercube_aux: np.ndarray
+):
+    # make sure everything is positive
+    score -= np.nanmin(score)
+    df_aux = df_aux.reset_index(drop=True)
+    for selector in [s for s in SELECTORS if s.refers_to_variable is not None]:
+        variable = selector.refers_to_variable
+        if selector.is_toggle and st.session_state[selector.key] is True:
+            df = df_aux[df_aux.variable == variable]
+            score_aux = hypercube_aux[:, :, df.index[0]]
+            if variable == "seaLevelElevation":
+                score += np.where(score_aux < 0, -score, 0)
+            elif variable == "realEstate":
+                score = score / np.sqrt(score_aux)
+
+    score = minmax_bounding(score, 0, 1)
+    return score
 
 
-def render_weights_setters(df: pd.DataFrame, df_aux: pd.DataFrame, value=1):
-    _df = pd.concat([df.assign(source="primary"), df_aux.assign(source="aux")])
-    init_weights(_df, value=value, force=True)
-    _df = _df[(_df.term == "ref") | (_df.source == "aux")]
-    _df["key"] = _df.apply(lambda s: serie2featurename(s, prefix=WEIGHT_PREFIX), axis=1)
-    _df["label"] = _df.apply(lambda s: f"{s.variable} during {s.season}", axis=1)
+def render_weights_setters(df: pd.DataFrame, value=1):
+    init_weights(df, value=value, force=True)
+    df = df[(df.term == "ref")]
+    df["key"] = df.apply(lambda s: serie2featurename(s, prefix=WEIGHT_PREFIX), axis=1)
+    df["label"] = df.apply(lambda s: f"{s.variable} during {s.season}", axis=1)
 
     # gather info about variables anno vs seasons
 
-    df_non_seasonal = _df[(_df.season == "anno")]
-    df_season = _df[_df.season != "anno"]
+    df_non_seasonal = df[(df.season == "anno")]
+    df_season = df[df.season != "anno"]
     four_seasons = ["winter", "spring", "summer", "autumn"]
     season_variables = [None] + sorted(df_season.variable.unique().tolist())
     # annual variables
@@ -274,6 +284,17 @@ def render_weights_setters(df: pd.DataFrame, df_aux: pd.DataFrame, value=1):
                         )
 
 
+def create_title(term: str, comparison: str, real_estate: bool) -> str:
+    unit = "unit is score/(€/m2)" if real_estate else "no unit"
+    title_el = [
+        f"Climate-score map (higher the better)",
+        f"for {term}-term projection",
+        f"comparing to the reference {comparison}",
+        f"({unit})",
+    ]
+    return "\n".join(wrap(" ".join(title_el), width=70))
+
+
 def render(
     metadata_path,
     metadata_aux_path,
@@ -284,35 +305,33 @@ def render(
     df, df_aux, df_viable, hypercube, hypercube_aux = init(
         metadata_path, metadata_aux_path, viable_path, hypercube_path
     )
-    col_img, col_selectors = st.columns([5, 2])
+    _, col_img, col_selectors, _ = st.columns([1, 8, 4, 1])
     with col_img:
-        img = prepare_img(
+        score = build_climate_score(
             st.session_state[TERM_SELECTOR_KEY],
             st.session_state[COMPARISON_TYPE_SELECTOR_KEY],
             df,
             df_viable,
             hypercube,
+            smart_comparison=st.session_state[SMART_COMPARISON_TOGGLE_KEY],
         )
-        fig, ax = plt.subplots(figsize=(6, 6))
-        plt.imshow(img, cmap="jet")
+        score = pimp_score_with_auxiliary_data(score, df_aux, hypercube_aux)
+        fig, ax = plt.subplots(figsize=(10, 10))
+        plt.imshow(score, cmap="jet")
         plt.colorbar()
         plt.grid(which="both", alpha=0.5)
-        _ = plt.xticks(ticks=np.arange(0, img.shape[1], step=20))
-        _ = plt.yticks(ticks=np.arange(0, img.shape[0], step=20))
+        _ = plt.xticks(ticks=np.arange(0, score.shape[1], step=20))
+        _ = plt.yticks(ticks=np.arange(0, score.shape[0], step=20))
+        title = create_title(
+            st.session_state[TERM_SELECTOR_KEY],
+            st.session_state[COMPARISON_TYPE_SELECTOR_KEY],
+            st.session_state[REAL_ESTATE_TOGGLE_KEY],
+        )
+        st.caption(title)
         st.pyplot(fig)
     with col_selectors:
         for selector in SELECTORS:
             selector.get_st_object()
 
     # weights
-    render_weights_setters(df, df_aux, value=1)
-
-
-def craft_key(metadata, prefix=None):
-    el = [prefix] if prefix is not None else []
-    el += [metadata.variable, metadata.season]
-    return "_".join(el)
-
-
-def craft_weight_key(metadata):
-    return craft_key(metadata=metadata, prefix="weight")
+    render_weights_setters(df, value=1)

@@ -1,6 +1,6 @@
 import streamlit as st
 import click
-from heating_planner.streamlit import display, display2
+from heating_planner.streamlit import display2
 from heating_planner.utils import load_pil_from_anywhere
 from streamlit_image_coordinates import streamlit_image_coordinates
 import numpy as np
