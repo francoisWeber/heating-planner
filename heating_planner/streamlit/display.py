@@ -212,7 +212,16 @@ def display(metadata_path, metadata_aux_path, viable_path, mask_path, hypercube_
             plt.grid(which="both", alpha=0.5)
             _ = plt.xticks(ticks=np.arange(0, scores.shape[1], step=20))
             _ = plt.yticks(ticks=np.arange(0, scores.shape[0], step=20))
-            st.caption("Global weighted score map" + title_suffix)
+            # find optimal
+            best_loc_1d = np.nanargmax(agg_weighted_score)
+            best_loc_xy = np.unravel_index(best_loc_1d, agg_weighted_score.shape)
+
+            st.caption(
+                "Global weighted score map"
+                + title_suffix
+                + " / best score at "
+                + str(best_loc_xy)
+            )
             st.pyplot(fig)
 
         with weights_context:

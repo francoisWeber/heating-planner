@@ -1,7 +1,15 @@
-from typing import Tuple
+from typing import List, Tuple
 import numpy as np
 import pandas as pd
 from heating_planner.utils import load_np_from_anywhere, load_pil_from_anywhere
+
+
+def metadata2featurename(variable, season):
+    return " _".join([variable, season])
+
+
+def serie2featurename(meta: pd.Series):
+    return metadata2featurename(meta.variable, meta.season)
 
 
 class Datum:
@@ -9,7 +17,6 @@ class Datum:
         self,
         metadata_path,
         metadata_aux_path,
-        viable_ranges_path,
         mask_path,
         hypercubes_path,
         base_map_path,
@@ -24,7 +31,6 @@ class Datum:
             .reset_index()
             .sort_values(["variable", "season"])
         )
-        self.df_viable_ranges = pd.read_json(viable_ranges_path)
         self.mask = load_np_from_anywhere(mask_path)
         hypercubes = load_np_from_anywhere(hypercubes_path)
         self.hypercube = hypercubes["map"]
@@ -59,3 +65,26 @@ class Datum:
         df_ref = self.metadata[self.metadata.term == term]
         cube_ref = self.hypercube[:, :, df_ref.index.tolist()]
         return df_ref, cube_ref
+
+    def get_every_features_names(self):
+        feats = self.metadata.apply(serie2featurename, axis=1).tolist()
+        feats_aux = self.metadata.apply(serie2featurename, axis=1).tolist()
+        return list(set(feats_aux + feats))
+
+    def get_every_seasons(self, with_variable_in: List | str | None = None):
+        df = pd.concat([self.metadata, self.metadata_aux])
+        if with_variable_in:
+            if isinstance(with_variable_in, str):
+                with_variable_in = [with_variable_in]
+            with_variable_in = set(with_variable_in)
+            df = df[df.variable.isin(with_variable_in)]
+        return df.season.unique().tolist()
+
+    def get_every_variables(self, with_season_in: List | str | None = None):
+        df = pd.concat([self.metadata, self.metadata_aux])
+        if with_season_in:
+            if isinstance(with_season_in, str):
+                with_season_in = [with_season_in]
+            with_season_in = set(with_season_in)
+            df = df[df.season.isin(with_season_in)]
+        return df.variable.unique().tolist()
