@@ -1,25 +1,23 @@
 import numpy as np
 
 
-def neutral_delta_normalized(map: np.ndarray, lower, upper):
-    delta_map = np.where(np.isnan(map), np.nan, 0)
-    delta_map += np.where(map < lower, map - lower, 0)
-    delta_map += np.where(map > upper, -(map - upper), 0)
-    delta_map /= np.nanstd(map)
-    return delta_map
+def comparison_neutral_delta(value_minus_reference, normalize=True):
+    delta_compared = -np.abs(value_minus_reference)
+    if normalize:
+        delta_compared /= np.nanstd(delta_compared)
+    return delta_compared
 
 
-def lower_better_delta_normalized(map, lower, upper, decay=0.1):
-    delta_map = np.where(np.isnan(map), np.nan, 0)
-    delta_map += np.where(map < lower, decay * (lower - map), 0)
-    delta_map += np.where(map > upper, -(map - upper), 0)
-    delta_map /= np.nanstd(map)
-    return delta_map
+def comparison_upper_better_delta(value_minus_reference, decay=0.1, normalize=True):
+    delta_compared = np.where(
+        value_minus_reference > 0, value_minus_reference * decay, value_minus_reference
+    )
+    if normalize:
+        delta_compared /= np.nanstd(delta_compared)
+    return delta_compared
 
 
-def upper_better_delta_normalized(map, lower, upper, decay=0.1):
-    delta_map = np.where(np.isnan(map), np.nan, 0)
-    delta_map += np.where(map < lower, map - lower, 0)
-    delta_map += np.where(map > upper, decay * (map - upper), 0)
-    delta_map /= np.nanstd(map)
-    return delta_map
+def comparison_lower_better_delta(value_minus_reference, decay=0.1, normalize=True):
+    return comparison_upper_better_delta(
+        -value_minus_reference, decay=decay, normalize=normalize
+    )

@@ -1,12 +1,8 @@
 from typing import List
 from matplotlib import pyplot as plt
 import streamlit as st
-from glob import glob
-from os import path as osp
 import pandas as pd
 import numpy as np
-from heating_planner.geocoding import get_xy_map_coords_of_place
-from heating_planner.map_handling import get_np_subgrid_from_xy_coords
 
 st.title("Set viable variable ranges !")
 
