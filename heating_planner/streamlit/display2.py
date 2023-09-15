@@ -20,12 +20,17 @@ from heating_planner.geocoding import (
 )
 
 
+@st.cache_data
+def convert_xy_to_geo_cached(xy):
+    return convert_xy_to_geo(xy)
+
+
 def get_clicked_loc_from_key(st_key, factor=None):
     if (xy := st.session_state[st_key]) is not None:
         xy = np.array([xy["x"], xy["y"]])
         if factor:
             xy = xy // factor
-        coords = convert_xy_to_geo(xy)
+        coords = convert_xy_to_geo_cached(xy)
         loc = Loc(coords=coords)
         address_elements = clean_geocoded_address(loc.name)
         if len(address_elements) <= 5:
@@ -268,9 +273,9 @@ def pimp_score_with_auxiliary_data(
     df_aux = df_aux.reset_index(drop=True)
 
     if st.session_state[POSITIVE_SCORES_BONUS_TOGGLE_KEY]:
-        score = np.where(score > 0, 10 * score, score)
+        score = np.where(score > 0, 2 * score, score)
 
-    score = minmax_bounding(score)
+    # score = minmax_bounding(score)
 
     if st.session_state[SEALEVEL_TOGGLE_KEY]:
         df = df_aux[df_aux.variable == "seaLevelElevation"]
@@ -278,13 +283,14 @@ def pimp_score_with_auxiliary_data(
         score = np.where(score_aux < 0, np.nanmin(score), score)
 
     if st.session_state[INCREASE_CONTRAST_TOGGLE_KEY]:
-        score = np.sign(score) * np.square(score)
         score = minmax_bounding(score)
+        score = np.sign(score) * np.power(np.abs(score), 3)
 
     if st.session_state[REAL_ESTATE_TOGGLE_KEY]:
         df = df_aux[df_aux.variable == "realEstate"]
         score_aux = hypercube_aux[:, :, df.index[0]]
-        score = minmax_bounding(score / np.sqrt(score_aux))
+        score = minmax_bounding(score) / np.sqrt(score_aux)
+        score = minmax_bounding(score)
 
     return score
 
@@ -371,6 +377,12 @@ def optimize_if_nan(xy, hypercube):
         return xy
 
 
+@st.cache_data
+def get_quantile_cached(score: np.ndarray, q: list):
+    values = np.nanquantile(score.ravel(), q=q)
+    return {qq: vv for qq, vv in zip(q, values)}
+
+
 def display_cities_slices(cities: str | None, hypercube, ordered_features):
     if cities:
         cities = [c.strip() for c in cities.split(",")]
@@ -383,17 +395,55 @@ def display_cities_slices(cities: str | None, hypercube, ordered_features):
         st.bar_chart(df)
 
 
+def search_and_display_tops(
+    top,
+    score,
+):
+    top_score = score.copy()
+    xys_of_tops = []
+    score_of_tops = []
+    window_size = 5
+    for i in range(top):
+        id_of_max = np.nanargmax(top_score)
+        xy = np.unravel_index(id_of_max, score.shape)
+        xy_geo = [xy[1], xy[0]]
+        xys_of_tops.append(xy_geo)
+        score_of_tops.append(score[*xy])
+        # clear area to avoid to pick it again
+        top_score[
+            xy[0] - window_size : xy[0] + window_size,
+            xy[1] - window_size : xy[1] + window_size,
+        ] = np.nan
+    coords_of_top = [convert_xy_to_geo_cached(xy) for xy in xys_of_tops]
+    for i, coords in enumerate(coords_of_top):
+        try:
+            st.markdown(f"**TOP {i+1}** : {Loc(coords=coords).name}")
+        except AttributeError:
+            st.markdown(f"**TOP {i+1}** : {coords}")
+
+
+def draw_fig(score, term, comparison, real_estate, size=10):
+    fig, _ = plt.subplots(figsize=(size, size))
+    plt.imshow(score, cmap="jet")
+    plt.colorbar()
+    plt.grid(which="both", alpha=0.5)
+    _ = plt.xticks(ticks=np.arange(0, score.shape[1], step=20))
+    _ = plt.yticks(ticks=np.arange(0, score.shape[0], step=20))
+    title = create_title(term, comparison, real_estate)
+    plt.title(title)
+    return fig
+
+
 def render(
     metadata_path,
     metadata_aux_path,
     viable_path,
-    mask_path,
     hypercube_path,
 ):
     df, df_aux, df_viable, hypercube, hypercube_aux = init(
         metadata_path, metadata_aux_path, viable_path, hypercube_path
     )
-    col_img, col_selectors = st.columns([2, 1])
+    col_img, col_selectors = st.columns(2)
     with col_img:
         hypercube, ordered_features = build_weighted_hypercube(
             st.session_state[TERM_SELECTOR_KEY],
@@ -405,29 +455,29 @@ def render(
         )
         score = hypercube.mean(axis=-1)
         score = pimp_score_with_auxiliary_data(score, df_aux, hypercube_aux)
-        fig, ax = plt.subplots(figsize=(7, 7))
-        plt.imshow(score, cmap="jet")
-        plt.colorbar()
-        plt.grid(which="both", alpha=0.5)
-        _ = plt.xticks(ticks=np.arange(0, score.shape[1], step=20))
-        _ = plt.yticks(ticks=np.arange(0, score.shape[0], step=20))
-        title = create_title(
+        fig = draw_fig(
+            score,
             st.session_state[TERM_SELECTOR_KEY],
             st.session_state[COMPARISON_TYPE_SELECTOR_KEY],
             st.session_state[REAL_ESTATE_TOGGLE_KEY],
+            size=10,
         )
-        st.caption(title)
         st.pyplot(fig)
     with col_selectors:
         for selector in SELECTORS:
             selector.get_st_object()
-        st.markdown("---")
         if loc := get_clicked_loc_from_key(MAP_CLICKED_POSITION_KEY, factor=5):
+            st.markdown("---")
             st.markdown("Picked **reference** location: " + loc)
+    col_analysis, col_top = st.columns(2)
+    with col_analysis:
         st.text_input("cities to analyze ...", key=CITIES_TO_ANALYZE_KEY)
         display_cities_slices(
             st.session_state[CITIES_TO_ANALYZE_KEY], hypercube, ordered_features
         )
+    with col_top:
+        with st.spinner("Getting best places wrt your parameters ..."):
+            search_and_display_tops(5, score)
 
-    # weights
-    render_weights_setters(df, value=1)
+    with st.expander(label="Weight setting", expanded=True):
+        render_weights_setters(df, value=1)

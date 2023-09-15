@@ -6,6 +6,7 @@ from streamlit_image_coordinates import streamlit_image_coordinates
 import numpy as np
 
 st.set_page_config(layout="wide")
+st.title("Heating planner")
 
 
 @st.cache_data
@@ -21,14 +22,12 @@ def st_load_pil_from_anywhere(path, factor=None):
 @click.option("--metadata-path", type=str, default=None)
 @click.option("--metadata-aux-path", type=str, default=None)
 @click.option("--viable-path", type=str, default=None)
-@click.option("--mask-path", type=str, default=None)
 @click.option("--hypercube-path", type=str, default=None)
 def run(
     basemap_path,
     metadata_path,
     metadata_aux_path,
     viable_path,
-    mask_path,
     hypercube_path,
 ):
     with st.expander("Select a reference location"):
@@ -42,7 +41,6 @@ def run(
             metadata_path,
             metadata_aux_path,
             viable_path,
-            mask_path,
             hypercube_path,
         )
 
