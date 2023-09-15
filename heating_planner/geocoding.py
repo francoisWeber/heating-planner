@@ -31,6 +31,18 @@ geocode = partial(geolocator.geocode, language="fr")
 reverse_geocode = partial(geolocator.reverse, language="fr")
 
 
+def clean_geocoded_address(address: str, rm_zip=True):
+    loc_el = []
+    for el in address.split(", "):
+        # remove zip
+        if rm_zip:
+            try:
+                int(el)
+            except ValueError:
+                loc_el.append(el)
+    return loc_el
+
+
 class Loc:
     def __init__(self, name: str = None, coords: tuple = None):
         self.name = name
@@ -44,6 +56,7 @@ class Loc:
                 self.location.longitude,
                 self.location.altitude,
             )
+            self.name = self.location.address
         elif coords is not None:
             self.location: Location = reverse_geocode(coords)
             self.name = self.location.address
@@ -174,7 +187,7 @@ def convert_geo_to_xy(coords):
     )
     x = intercept_x + np.sum(coords * coefs_x)
     y = intercept_y + np.sum(coords * coefs_y)
-    return x, y
+    return y, x
 
 
 def convert_xy_to_geo(xy):

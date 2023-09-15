@@ -38,15 +38,6 @@ def run(
         streamlit_image_coordinates(base_map, key="map_clicked_xy")
 
     with st.container():
-        # display.display(
-        #     metadata_path,
-        #     metadata_aux_path,
-        #     viable_path,
-        #     mask_path,
-        #     hypercube_path,
-        # )
-        # from heating_planner.streamlit import display2
-
         display2.render(
             metadata_path,
             metadata_aux_path,
