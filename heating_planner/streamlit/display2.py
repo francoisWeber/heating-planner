@@ -40,8 +40,13 @@ def get_clicked_loc_from_key(st_key, factor=None):
         return ", ".join(place)
 
 
+# MISC
+RELOADING_WARNING_MSG = ":warning: wrong init but it'll be OK soon ; just hit R"
+
 # Key from outside
 MAP_CLICKED_POSITION_KEY = "map_clicked_xy"
+
+# Local keys
 WEIGHT_PREFIX = "weight!"
 TERM_SELECTOR_KEY = "term_selector_key"
 REAL_ESTATE_TOGGLE_KEY = "real_estate_toggle_key"
@@ -140,6 +145,8 @@ def init(metadata_path, metadata_aux_path, viable_path, hypercube_path):
     init_weights(df_concat)
     maybe_add_to_session_state(SCORE_CLICKED_POSITION_KEY, None)
     maybe_add_to_session_state(CITIES_TO_ANALYZE_KEY, None)
+    for selector in SELECTORS:
+        maybe_add_to_session_state(selector.key, selector.default)
     return df, df_aux, df_viable, hypercube, hypercube_aux
 
 
@@ -455,14 +462,17 @@ def render(
         )
         score = hypercube.mean(axis=-1)
         score = pimp_score_with_auxiliary_data(score, df_aux, hypercube_aux)
-        fig = draw_fig(
-            score,
-            st.session_state[TERM_SELECTOR_KEY],
-            st.session_state[COMPARISON_TYPE_SELECTOR_KEY],
-            st.session_state[REAL_ESTATE_TOGGLE_KEY],
-            size=10,
-        )
-        st.pyplot(fig)
+        try:
+            fig = draw_fig(
+                score,
+                st.session_state[TERM_SELECTOR_KEY],
+                st.session_state[COMPARISON_TYPE_SELECTOR_KEY],
+                st.session_state[REAL_ESTATE_TOGGLE_KEY],
+                size=10,
+            )
+            st.pyplot(fig)
+        except ValueError:
+            st.markdown(RELOADING_WARNING_MSG)
     with col_selectors:
         for selector in SELECTORS:
             selector.get_st_object()
@@ -471,10 +481,13 @@ def render(
             st.markdown("Picked **reference** location: " + loc)
     col_analysis, col_top = st.columns(2)
     with col_analysis:
-        st.text_input("cities to analyze ...", key=CITIES_TO_ANALYZE_KEY)
-        display_cities_slices(
-            st.session_state[CITIES_TO_ANALYZE_KEY], hypercube, ordered_features
-        )
+        try:
+            st.text_input(label="cities to analyze ...", key=CITIES_TO_ANALYZE_KEY)
+            display_cities_slices(
+                st.session_state[CITIES_TO_ANALYZE_KEY], hypercube, ordered_features
+            )
+        except TypeError:
+            st.markdown(RELOADING_WARNING_MSG)
     with col_top:
         with st.spinner("Getting best places wrt your parameters ..."):
             search_and_display_tops(5, score)
