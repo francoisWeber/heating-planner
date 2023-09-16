@@ -1,3 +1,4 @@
+import io
 from typing import List
 from matplotlib import pyplot as plt
 import streamlit as st
@@ -75,49 +76,58 @@ def serie2featurename(meta: pd.Series, prefix=None):
     return "_".join(infos)
 
 
-SELECTORS = [
-    Selector(
-        key=TERM_SELECTOR_KEY,
-        label="Term to consider ?",
-        values=["near", "medium"],
-        default="near",
-    ),
-    Selector(
-        key=COMPARISON_TYPE_SELECTOR_KEY,
-        label="Method of comparison ?",
-        values=COMPARISON_TYPE_OPTIONS,
-        default="map",
-    ),
-    Selector(
-        key=SMART_COMPARISON_TOGGLE_KEY,
-        label="Do smart comparison ?",
-        is_toggle=True,
-        default=True,
-    ),
-    Selector(
-        key=POSITIVE_SCORES_BONUS_TOGGLE_KEY,
-        label="apply a bonus for positive scores ?",
-        is_toggle=True,
-        default=True,
-    ),
-    Selector(
-        key=INCREASE_CONTRAST_TOGGLE_KEY,
-        label="Increase contrast ?",
-        is_toggle=True,
-    ),
-    Selector(
-        key=REAL_ESTATE_TOGGLE_KEY,
-        refers_to_variable="realEstate",
-        label="Include real estate ?",
-        is_toggle=True,
-    ),
-    Selector(
-        key=SEALEVEL_TOGGLE_KEY,
-        refers_to_variable="seaLevelElevation",
-        label="Include sea elevation ?",
-        is_toggle=True,
-    ),
-]
+def init_selectors(is_demo: bool):
+    selectors = [
+        Selector(
+            key=TERM_SELECTOR_KEY,
+            label="Term to consider ?",
+            values=["near", "medium"],
+            default="near",
+        ),
+        Selector(
+            key=COMPARISON_TYPE_SELECTOR_KEY,
+            label="Method of comparison ?",
+            values=COMPARISON_TYPE_OPTIONS,
+            default="map",
+        ),
+        Selector(
+            key=SMART_COMPARISON_TOGGLE_KEY,
+            label="Do smart comparison ?",
+            is_toggle=True,
+            default=True,
+        ),
+        Selector(
+            key=POSITIVE_SCORES_BONUS_TOGGLE_KEY,
+            label="apply a bonus for positive scores ?",
+            is_toggle=True,
+            default=True,
+        ),
+        Selector(
+            key=INCREASE_CONTRAST_TOGGLE_KEY,
+            label="Increase contrast ?",
+            is_toggle=True,
+        ),
+    ]
+    bonus_selectors = [
+        Selector(
+            key=REAL_ESTATE_TOGGLE_KEY,
+            refers_to_variable="realEstate",
+            label="Include real estate ?",
+            is_toggle=True,
+        ),
+        Selector(
+            key=SEALEVEL_TOGGLE_KEY,
+            refers_to_variable="seaLevelElevation",
+            label="Include sea elevation ?",
+            is_toggle=True,
+        ),
+    ]
+    if not is_demo:
+        selectors += bonus_selectors
+    if "selectors" not in st.session_state:
+        st.session_state.selectors = selectors
+    for selector in selectors + bonus_selectors:
+        maybe_add_to_session_state(selector.key, selector.values)
 
 
 @st.cache_resource(show_spinner="loading maps ...")
@@ -136,7 +146,9 @@ def init_weights(df: pd.DataFrame, value=1, force=False):
         maybe_add_to_session_state(feature_name, value)
 
 
-def init(metadata_path, metadata_aux_path, viable_path, hypercube_path):
+def init(
+    metadata_path, metadata_aux_path, viable_path, hypercube_path, is_demo: bool = False
+):
     df = load_json(metadata_path)
     df_aux = load_json(metadata_aux_path)
     df_viable = load_json(viable_path)
@@ -145,7 +157,8 @@ def init(metadata_path, metadata_aux_path, viable_path, hypercube_path):
     init_weights(df_concat)
     maybe_add_to_session_state(SCORE_CLICKED_POSITION_KEY, None)
     maybe_add_to_session_state(CITIES_TO_ANALYZE_KEY, None)
-    for selector in SELECTORS:
+    init_selectors(is_demo)
+    for selector in st.session_state.selectors:
         maybe_add_to_session_state(selector.key, selector.default)
     return df, df_aux, df_viable, hypercube, hypercube_aux
 
@@ -296,7 +309,7 @@ def pimp_score_with_auxiliary_data(
     if st.session_state[REAL_ESTATE_TOGGLE_KEY]:
         df = df_aux[df_aux.variable == "realEstate"]
         score_aux = hypercube_aux[:, :, df.index[0]]
-        score = minmax_bounding(score) / np.sqrt(score_aux)
+        score = minmax_bounding(score) / np.log(score_aux)
         score = minmax_bounding(score)
 
     return score
@@ -409,7 +422,7 @@ def search_and_display_tops(
     top_score = score.copy()
     xys_of_tops = []
     score_of_tops = []
-    window_size = 5
+    window_size = 7
     for i in range(top):
         id_of_max = np.nanargmax(top_score)
         xy = np.unravel_index(id_of_max, score.shape)
@@ -422,11 +435,13 @@ def search_and_display_tops(
             xy[1] - window_size : xy[1] + window_size,
         ] = np.nan
     coords_of_top = [convert_xy_to_geo_cached(xy) for xy in xys_of_tops]
-    for i, coords in enumerate(coords_of_top):
-        try:
-            st.markdown(f"**TOP {i+1}** : {Loc(coords=coords).name}")
-        except AttributeError:
-            st.markdown(f"**TOP {i+1}** : {coords}")
+
+    loc_of_top = [Loc(coords=coords) for coords in coords_of_top]
+    name_of_top = [
+        ", ".join(clean_geocoded_address(loc.name)[-5:]) for loc in loc_of_top
+    ]
+    str_of_top = [f"**TOP {i+1}** : {name}" for i, name in enumerate(name_of_top)]
+    st.markdown("\n\n".join(str_of_top))
 
 
 def draw_fig(score, term, comparison, real_estate, size=10):
@@ -441,14 +456,22 @@ def draw_fig(score, term, comparison, real_estate, size=10):
     return fig
 
 
-def render(
-    metadata_path,
-    metadata_aux_path,
-    viable_path,
-    hypercube_path,
-):
+def extract_params():
+    weights = {k: v for k, v in st.session_state.items() if WEIGHT_PREFIX in k}
+    options = {s.key: st.session_state[s.key] for s in st.session_state.selectors}
+    return {"weights": weights, "options": options}
+
+
+def save_fig():
+    buffer = io.BytesIO()
+    st.session_state.fig.savefig(buffer, format="png")
+    buffer.seek(0)
+    return buffer
+
+
+def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_demo):
     df, df_aux, df_viable, hypercube, hypercube_aux = init(
-        metadata_path, metadata_aux_path, viable_path, hypercube_path
+        metadata_path, metadata_aux_path, viable_path, hypercube_path, is_demo
     )
     col_img, col_selectors = st.columns(2)
     with col_img:
@@ -471,26 +494,28 @@ def render(
                 size=10,
             )
             st.pyplot(fig)
+            st.session_state["fig"] = fig
         except ValueError:
             st.markdown(RELOADING_WARNING_MSG)
     with col_selectors:
-        for selector in SELECTORS:
+        for selector in st.session_state.selectors:
             selector.get_st_object()
         if loc := get_clicked_loc_from_key(MAP_CLICKED_POSITION_KEY, factor=5):
             st.markdown("---")
             st.markdown("Picked **reference** location: " + loc)
-    col_analysis, col_top = st.columns(2)
-    with col_analysis:
-        try:
-            st.text_input(label="cities to analyze ...", key=CITIES_TO_ANALYZE_KEY)
-            display_cities_slices(
-                st.session_state[CITIES_TO_ANALYZE_KEY], hypercube, ordered_features
-            )
-        except TypeError:
-            st.markdown(RELOADING_WARNING_MSG)
-    with col_top:
-        with st.spinner("Getting best places wrt your parameters ..."):
-            search_and_display_tops(5, score)
+    if not is_demo:
+        col_analysis, col_top = st.columns(2)
+        with col_analysis:
+            try:
+                st.text_input(label="cities to analyze ...", key=CITIES_TO_ANALYZE_KEY)
+                display_cities_slices(
+                    st.session_state[CITIES_TO_ANALYZE_KEY], hypercube, ordered_features
+                )
+            except TypeError:
+                st.markdown(RELOADING_WARNING_MSG)
+        with col_top:
+            with st.spinner("Getting best places wrt your parameters ..."):
+                search_and_display_tops(3, score)
 
     with st.expander(label="Weight setting", expanded=True):
         render_weights_setters(df, value=1)

@@ -4,9 +4,22 @@ from heating_planner.streamlit import display2
 from heating_planner.utils import load_pil_from_anywhere
 from streamlit_image_coordinates import streamlit_image_coordinates
 import numpy as np
+import json
+import yaml
+import streamlit_authenticator as stauth
 
 st.set_page_config(layout="wide")
-st.title("Heating planner")
+st.title("Heating planner :sunglasses: ")
+
+with open("./credentials.yaml") as f:
+    config = yaml.load(f, Loader=yaml.loader.SafeLoader)
+authenticator = stauth.Authenticate(
+    config["credentials"],
+    config["cookie"]["name"],
+    config["cookie"]["key"],
+    config["cookie"]["expiry_days"],
+    config["preauthorized"],
+)
 
 
 @st.cache_data
@@ -15,6 +28,10 @@ def st_load_pil_from_anywhere(path, factor=None):
     if factor:
         im = im.resize(np.array(im.size) // factor)
     return im
+
+
+if "not_greated_yet" not in st.session_state:
+    st.session_state.not_greated_yet = True
 
 
 @click.command()
@@ -30,19 +47,47 @@ def run(
     viable_path,
     hypercube_path,
 ):
-    with st.expander("Select a reference location"):
-        if "map_clicked_xy" not in st.session_state:
-            st.session_statemap_clicked_xy = None
-        base_map = st_load_pil_from_anywhere(basemap_path)
-        streamlit_image_coordinates(base_map, key="map_clicked_xy")
+    name, authentication_status, username = authenticator.login(
+        "Login (or use demo/demo for a quick overview)", "main"
+    )
+    if authentication_status:
+        if st.session_state.not_greated_yet:
+            st.toast(f"Welcome {name} :smiley: ")
+            st.session_state.not_greated_yet = False
+        is_demo = username == "demo"
+        with st.expander("Select a reference location"):
+            if "map_clicked_xy" not in st.session_state:
+                st.session_statemap_clicked_xy = None
+            base_map = st_load_pil_from_anywhere(basemap_path)
+            streamlit_image_coordinates(base_map, key="map_clicked_xy")
 
-    with st.container():
-        display2.render(
-            metadata_path,
-            metadata_aux_path,
-            viable_path,
-            hypercube_path,
-        )
+        with st.container():
+            display2.render(
+                metadata_path,
+                metadata_aux_path,
+                viable_path,
+                hypercube_path,
+                is_demo,
+            )
+
+        if not is_demo:
+            with st.sidebar:
+                st.download_button(
+                    "Download map",
+                    display2.save_fig(),
+                    file_name="score.png",
+                    mime="image/png",
+                )
+                st.download_button(
+                    "Download params",
+                    json.dumps(display2.extract_params()),
+                    mime="application/json",
+                    file_name="params.json",
+                )
+    elif authentication_status is False:
+        st.error("Incorrect login :warning:")
+    elif authentication_status is None:
+        st.warning("Enter credentials :upside_down_face: ")
 
 
 if __name__ == "__main__":
