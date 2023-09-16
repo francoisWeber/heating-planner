@@ -9,7 +9,7 @@ import yaml
 import streamlit_authenticator as stauth
 
 st.set_page_config(layout="wide")
-st.title("Heating planner")
+st.title("Heating planner :sunglasses: ")
 
 with open("./credentials.yaml") as f:
     config = yaml.load(f, Loader=yaml.loader.SafeLoader)
@@ -30,6 +30,10 @@ def st_load_pil_from_anywhere(path, factor=None):
     return im
 
 
+if "not_greated_yet" not in st.session_state:
+    st.session_state.not_greated_yet = True
+
+
 @click.command()
 @click.option("--basemap-path", type=str, default=None)
 @click.option("--metadata-path", type=str, default=None)
@@ -43,9 +47,14 @@ def run(
     viable_path,
     hypercube_path,
 ):
-    name, authentication_status, username = authenticator.login("Login", "main")
+    name, authentication_status, username = authenticator.login(
+        "Login (or use demo/demo for a quick overview)", "main"
+    )
     if authentication_status:
-        st.toast(f"Welcome {name} :smiley: ")
+        if st.session_state.not_greated_yet:
+            st.toast(f"Welcome {name} :smiley: ")
+            st.session_state.not_greated_yet = False
+        is_demo = username == "demo"
         with st.expander("Select a reference location"):
             if "map_clicked_xy" not in st.session_state:
                 st.session_statemap_clicked_xy = None
@@ -58,21 +67,23 @@ def run(
                 metadata_aux_path,
                 viable_path,
                 hypercube_path,
+                is_demo,
             )
 
-        with st.sidebar:
-            st.download_button(
-                "Download map",
-                display2.save_fig(),
-                file_name="score.png",
-                mime="image/png",
-            )
-            st.download_button(
-                "Download params",
-                json.dumps(display2.extract_params()),
-                mime="application/json",
-                file_name="params.json",
-            )
+        if not is_demo:
+            with st.sidebar:
+                st.download_button(
+                    "Download map",
+                    display2.save_fig(),
+                    file_name="score.png",
+                    mime="image/png",
+                )
+                st.download_button(
+                    "Download params",
+                    json.dumps(display2.extract_params()),
+                    mime="application/json",
+                    file_name="params.json",
+                )
     elif authentication_status is False:
         st.error("Incorrect login :warning:")
     elif authentication_status is None:
