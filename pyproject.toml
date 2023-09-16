@@ -20,6 +20,7 @@ click = "^8.1.7"
 matplotlib = "^3.7.2"
 ipykernel = "^6.25.1"
 streamlit-image-coordinates = "^0.1.6"
+streamlit-authenticator = "^0.2.3"
 
 
 [tool.poetry.group.dev.dependencies]
