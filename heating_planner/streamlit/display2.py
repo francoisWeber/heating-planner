@@ -1,3 +1,4 @@
+import io
 from typing import List
 from matplotlib import pyplot as plt
 import streamlit as st
@@ -409,7 +410,7 @@ def search_and_display_tops(
     top_score = score.copy()
     xys_of_tops = []
     score_of_tops = []
-    window_size = 5
+    window_size = 7
     for i in range(top):
         id_of_max = np.nanargmax(top_score)
         xy = np.unravel_index(id_of_max, score.shape)
@@ -422,11 +423,12 @@ def search_and_display_tops(
             xy[1] - window_size : xy[1] + window_size,
         ] = np.nan
     coords_of_top = [convert_xy_to_geo_cached(xy) for xy in xys_of_tops]
-    for i, coords in enumerate(coords_of_top):
-        try:
-            st.markdown(f"**TOP {i+1}** : {Loc(coords=coords).name}")
-        except AttributeError:
-            st.markdown(f"**TOP {i+1}** : {coords}")
+    loc_of_top = [Loc(coords=coords) for coords in coords_of_top]
+    name_of_top = [
+        ", ".join(clean_geocoded_address(loc.name)[-5:]) for loc in loc_of_top
+    ]
+    str_of_top = [f"**TOP {i+1}** : {name}" for i, name in enumerate(name_of_top)]
+    st.markdown("\n\n".join(str_of_top))
 
 
 def draw_fig(score, term, comparison, real_estate, size=10):
@@ -439,6 +441,19 @@ def draw_fig(score, term, comparison, real_estate, size=10):
     title = create_title(term, comparison, real_estate)
     plt.title(title)
     return fig
+
+
+def extract_params():
+    weights = {k: v for k, v in st.session_state.items() if WEIGHT_PREFIX in k}
+    options = {s.key: st.session_state[s.key] for s in SELECTORS}
+    return {"weights": weights, "options": options}
+
+
+def save_fig():
+    buffer = io.BytesIO()
+    st.session_state.fig.savefig(buffer, format="png")
+    buffer.seek(0)
+    return buffer
 
 
 def render(
@@ -471,6 +486,7 @@ def render(
                 size=10,
             )
             st.pyplot(fig)
+            st.session_state["fig"] = fig
         except ValueError:
             st.markdown(RELOADING_WARNING_MSG)
     with col_selectors:
@@ -490,7 +506,7 @@ def render(
             st.markdown(RELOADING_WARNING_MSG)
     with col_top:
         with st.spinner("Getting best places wrt your parameters ..."):
-            search_and_display_tops(5, score)
+            search_and_display_tops(3, score)
 
     with st.expander(label="Weight setting", expanded=True):
         render_weights_setters(df, value=1)

@@ -4,6 +4,7 @@ from heating_planner.streamlit import display2
 from heating_planner.utils import load_pil_from_anywhere
 from streamlit_image_coordinates import streamlit_image_coordinates
 import numpy as np
+import json
 
 st.set_page_config(layout="wide")
 st.title("Heating planner")
@@ -42,6 +43,20 @@ def run(
             metadata_aux_path,
             viable_path,
             hypercube_path,
+        )
+
+    with st.sidebar:
+        st.download_button(
+            "Download map",
+            display2.save_fig(),
+            file_name="score.png",
+            mime="image/png",
+        )
+        st.download_button(
+            "Download params",
+            json.dumps(display2.extract_params()),
+            mime="application/json",
+            file_name="params.json",
         )
 
 
