@@ -47,8 +47,8 @@ def load_pil_from_anywhere(uri: str) -> Image:
         raise NotImplementedError(f"URI not handled: {uri}")
 
 
-def minmax_bounding(arr: np.ndarray, min=0.0, max=1.0) -> np.ndarray:
+def minmax_bounding(arr: np.ndarray, new_min=0.0, new_max=1.0) -> np.ndarray:
     arr = (arr - np.nanmin(arr)) / (np.nanmax(arr) - np.nanmin(arr))
-    arr += min
-    arr *= max - min
+    arr *= new_max - new_min
+    arr += new_min
     return arr
