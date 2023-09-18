@@ -6,33 +6,35 @@ import streamlit as st
 class Selector:
     def __init__(
         self,
+        type: str,
         key,
         label,
         values: List | bool | None = None,
         default=None,
-        is_toggle=False,
         refers_to_variable: str | None = None,
     ) -> None:
         self.label = label
-        if values is None and not is_toggle:
-            raise ValueError("Values must be set")
         self.values = values
         self.default = default if default else 0
         self.key = key
-        self.is_toggle = is_toggle
         self.refers_to_variable = refers_to_variable
+        self.type = type
         maybe_add_to_session_state(self.key, self.default)
 
     def get_st_object(self):
-        if self.is_toggle:
+        if self.type == "toggle":
             st.toggle(label=self.label, value=self.default, key=self.key)
-        else:
-            try:
-                st.radio(
-                    label=self.label,
-                    options=self.values,
-                    index=0,
-                    key=self.key,
-                )
-            except:
-                st.text(self.label)
+        elif self.type == "radio":
+            st.radio(
+                label=self.label,
+                options=self.values,
+                index=0,
+                key=self.key,
+            )
+        elif self.type == "slider":
+            st.select_slider(
+                label=self.label,
+                options=self.values,
+                key=self.key,
+                value=self.default,
+            )

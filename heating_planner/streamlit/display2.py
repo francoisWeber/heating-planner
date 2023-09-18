@@ -60,8 +60,13 @@ SCORE_CLICKED_POSITION_KEY = "scoremap_clicked_xy"
 COMPARISON_TYPE_OPTIONS = ["map", "point (if set)", "optimal ranges"]
 CITIES_TO_ANALYZE_KEY = "cities_to_analyze_key"
 INCREASE_CONTRAST_TOGGLE_KEY = "increased_contrast_toggle_key"
+REAL_ESTATE_POSSIBLE_VALUES = ["without", "log", "sqrt", "linear"]
 
-
+mapping2fn = {
+    "log": np.log,
+    "sqrt": np.sqrt,
+    "linear": lambda x: x,
+}
 ## ST stuff and other
 
 
@@ -80,6 +85,7 @@ def init_selectors(is_demo: bool):
     selectors = [
         Selector(
             key=TERM_SELECTOR_KEY,
+            type="radio",
             label="Term to consider ?",
             values=["near", "medium"],
             default="near",
@@ -87,39 +93,42 @@ def init_selectors(is_demo: bool):
         Selector(
             key=COMPARISON_TYPE_SELECTOR_KEY,
             label="Method of comparison ?",
+            type="radio",
             values=COMPARISON_TYPE_OPTIONS,
             default="map",
         ),
         Selector(
             key=SMART_COMPARISON_TOGGLE_KEY,
+            type="toggle",
             label="Do smart comparison ?",
-            is_toggle=True,
             default=True,
         ),
         Selector(
             key=POSITIVE_SCORES_BONUS_TOGGLE_KEY,
             label="apply a bonus for positive scores ?",
-            is_toggle=True,
+            type="toggle",
             default=True,
         ),
         Selector(
             key=INCREASE_CONTRAST_TOGGLE_KEY,
             label="Increase contrast ?",
-            is_toggle=True,
+            type="toggle",
         ),
     ]
     bonus_selectors = [
         Selector(
-            key=REAL_ESTATE_TOGGLE_KEY,
-            refers_to_variable="realEstate",
-            label="Include real estate ?",
-            is_toggle=True,
-        ),
-        Selector(
             key=SEALEVEL_TOGGLE_KEY,
             refers_to_variable="seaLevelElevation",
             label="Include sea elevation ?",
-            is_toggle=True,
+            type="toggle",
+        ),
+        Selector(
+            key=REAL_ESTATE_TOGGLE_KEY,
+            refers_to_variable="realEstate",
+            label="How to include real estate ?",
+            type="slider",
+            values=REAL_ESTATE_POSSIBLE_VALUES,
+            default=REAL_ESTATE_POSSIBLE_VALUES[0],
         ),
     ]
     if not is_demo:
@@ -293,9 +302,8 @@ def pimp_score_with_auxiliary_data(
     df_aux = df_aux.reset_index(drop=True)
 
     if st.session_state[POSITIVE_SCORES_BONUS_TOGGLE_KEY]:
-        score = np.where(score > 0, 2 * score, score)
-
-    # score = minmax_bounding(score)
+        score = np.where(score > 0, 10 * score, score)
+        score = minmax_bounding(score, 1.0, 100.0)
 
     if st.session_state[SEALEVEL_TOGGLE_KEY]:
         df = df_aux[df_aux.variable == "seaLevelElevation"]
@@ -303,14 +311,15 @@ def pimp_score_with_auxiliary_data(
         score = np.where(score_aux < 0, np.nanmin(score), score)
 
     if st.session_state[INCREASE_CONTRAST_TOGGLE_KEY]:
-        score = minmax_bounding(score)
-        score = np.sign(score) * np.power(np.abs(score), 3)
+        score = np.sign(score) * np.power(np.abs(score), 2)
+        score = minmax_bounding(score, 1, 100)
 
-    if st.session_state[REAL_ESTATE_TOGGLE_KEY]:
+    if (_type := st.session_state[REAL_ESTATE_TOGGLE_KEY]) is not "without":
+        fn = mapping2fn[_type]
         df = df_aux[df_aux.variable == "realEstate"]
         score_aux = hypercube_aux[:, :, df.index[0]]
-        score = minmax_bounding(score) / np.log(score_aux)
-        score = minmax_bounding(score)
+        score = score / fn(score_aux)
+        score = minmax_bounding(score, 1, 100)
 
     return score
 
@@ -446,8 +455,8 @@ def search_and_display_tops(
 
 def draw_fig(score, term, comparison, real_estate, size=10):
     fig, _ = plt.subplots(figsize=(size, size))
-    plt.imshow(score, cmap="jet")
-    plt.colorbar()
+    plt.imshow(score, cmap="RdYlBu")
+    # plt.colorbar()
     plt.grid(which="both", alpha=0.5)
     _ = plt.xticks(ticks=np.arange(0, score.shape[1], step=20))
     _ = plt.yticks(ticks=np.arange(0, score.shape[0], step=20))
@@ -503,7 +512,9 @@ def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_dem
         if loc := get_clicked_loc_from_key(MAP_CLICKED_POSITION_KEY, factor=5):
             st.markdown("---")
             st.markdown("Picked **reference** location: " + loc)
-    if not is_demo:
+    if is_demo:
+        st.mardown("Some analytics tool when logged in")
+    else:
         col_analysis, col_top = st.columns(2)
         with col_analysis:
             try:
