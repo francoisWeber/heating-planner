@@ -308,7 +308,7 @@ def pimp_score_with_auxiliary_data(
     if st.session_state[SEALEVEL_TOGGLE_KEY]:
         df = df_aux[df_aux.variable == "seaLevelElevation"]
         score_aux = hypercube_aux[:, :, df.index[0]]
-        score = np.where(score_aux < 0, np.nanmin(score), score)
+        score = np.where(score_aux == 1, np.nanmin(score), score)
 
     if st.session_state[INCREASE_CONTRAST_TOGGLE_KEY]:
         score = np.sign(score) * np.power(np.abs(score), 2)

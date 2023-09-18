@@ -7,11 +7,12 @@ from os import path as osp
 import pandas as pd
 from heating_planner import constantes as c
 from loguru import logger as log
+from scipy.signal import convolve2d
 
 
 def go(
     input_path: str = typer.Option(
-        "/Users/f.weber/tmp-fweber/heating/aux_maps/near_seaLevel_anno.png"
+        "/Users/f.weber/tmp-fweber/heating/aux_maps/seaLevel cropped.png"
     ),
     output_dir: str = typer.Option("/Users/f.weber/tmp-fweber/heating/processed/aux"),
     aux_metadata_path: str = typer.Option(
@@ -25,15 +26,22 @@ def go(
 
     # load resize convert
     im = Image.open(input_path)
-    im = im.resize((im.width // resize_factor, im.height // resize_factor))
-    img = np.asarray(im)
-    target_color = np.array([[[235, 92, 86]]])
-    array = np.where(np.linalg.norm(img[:, :, :3] - target_color, axis=-1) < 50, -1, 0)
-    array = array[330 // 5 :, : 1200 // 5]
-    array = array.astype(np.float16)
-    # use a mask
+    im = im.resize((1388, 1510), resample=Image.Resampling.BICUBIC)
+    img = np.asanyarray(im, dtype=np.float32)
+    # Extract seaflooding
+    img_sealevel = img[:, :, 2] * img[:, :, 1] / (img[:, :, 0] + 1)
+    sea_elevation = (img_sealevel < 110).astype(np.float32)
+    psf_w = 2
+    sea_elevation = convolve2d(sea_elevation, np.ones((psf_w, psf_w)), mode="same") > 0
+    # reshape it back
     mask = np.load("/Users/f.weber/tmp-fweber/heating/france_mask_factor5.npy")
-    array = np.where(np.isnan(mask), np.nan, array)
+    array = np.asanyarray(
+        Image.fromarray(sea_elevation).resize(
+            (1388 // resize_factor, 1510 // resize_factor)
+        )
+    )
+    array = array[330 // resize_factor :, : 1200 // resize_factor] * mask
+    array = array.astype(np.float16)
     # save it
     output_fname = "term=near_season=anno_variable=seaLevel_values=0$1"
     plt.imshow(array, cmap="jet")
