@@ -513,7 +513,7 @@ def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_dem
             st.markdown("---")
             st.markdown("Picked **reference** location: " + loc)
     if is_demo:
-        st.mardown("Some analytics tool when logged in")
+        st.markdown("Some analytics tool when logged in")
     else:
         col_analysis, col_top = st.columns(2)
         with col_analysis:
