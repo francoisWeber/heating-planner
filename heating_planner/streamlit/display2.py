@@ -94,7 +94,7 @@ def init_selectors(is_demo: bool):
             key=COMPARISON_TYPE_SELECTOR_KEY,
             label="Method of comparison ?",
             type="radio",
-            values=COMPARISON_TYPE_OPTIONS,
+            values=COMPARISON_TYPE_OPTIONS + ([] if is_demo else ["ideal climate"]),
             default="map",
         ),
         Selector(
@@ -415,9 +415,7 @@ def get_quantile_cached(score: np.ndarray, q: list):
 def display_cities_slices(cities: str | None, hypercube, ordered_features):
     if cities:
         cities = [c.strip() for c in cities.split(",")]
-        xys = np.array(
-            [convert_geo_to_xy(loc_cached(c).coords) for c in cities], dtype=np.int16
-        )
+        xys = np.array([convert_geo_to_xy(loc_cached(c).coords) for c in cities])
         xys = np.array([optimize_if_nan(xy, hypercube) for xy in xys])
         cities_values = hypercube[*xys.T, :]
         df = pd.DataFrame(data=cities_values, index=cities, columns=ordered_features)
@@ -455,7 +453,7 @@ def search_and_display_tops(
 
 def draw_fig(score, term, comparison, real_estate, size=10):
     fig, _ = plt.subplots(figsize=(size, size))
-    plt.imshow(score, cmap="RdYlBu")
+    plt.imshow(score, cmap="RdYlGn")  # RdYlGn, Spectral
     # plt.colorbar()
     plt.grid(which="both", alpha=0.5)
     _ = plt.xticks(ticks=np.arange(0, score.shape[1], step=20))
@@ -504,8 +502,9 @@ def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_dem
             )
             st.pyplot(fig)
             st.session_state["fig"] = fig
-        except ValueError:
+        except ValueError as e:
             st.markdown(RELOADING_WARNING_MSG)
+            st.text(e)
     with col_selectors:
         for selector in st.session_state.selectors:
             selector.get_st_object()
@@ -522,8 +521,9 @@ def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_dem
                 display_cities_slices(
                     st.session_state[CITIES_TO_ANALYZE_KEY], hypercube, ordered_features
                 )
-            except TypeError:
+            except TypeError as e:
                 st.markdown(RELOADING_WARNING_MSG)
+                st.text(e)
         with col_top:
             with st.spinner("Getting best places wrt your parameters ..."):
                 search_and_display_tops(3, score)
