@@ -159,8 +159,10 @@ def init(
     metadata_path, metadata_aux_path, viable_path, hypercube_path, is_demo: bool = False
 ):
     df = load_json(metadata_path)
-    df_aux = load_json(metadata_aux_path)
     df_viable = load_json(viable_path)
+    df = df.reset_index(drop=True).drop(columns=[c for c in df.columns if "fpath" in c])
+    df = pd.merge(left=df.reset_index(), right=df_viable, sort=False)
+    df_aux = load_json(metadata_aux_path)
     hypercube, hypercube_aux = load_hypercubes(hypercube_path)
     df_concat = pd.concat([df, df_aux])
     init_weights(df_concat)
@@ -169,7 +171,7 @@ def init(
     init_selectors(is_demo)
     for selector in st.session_state.selectors:
         maybe_add_to_session_state(selector.key, selector.default)
-    return df, df_aux, df_viable, hypercube, hypercube_aux
+    return df, df_aux, hypercube, hypercube_aux
 
 
 direction2function = {
@@ -218,13 +220,10 @@ def get_delta_hypercube_cached(hypercube_term, hypercube_ref, comparators_str):
 def precompute_helpers_for_climate_score(
     term: str,
     df: pd.DataFrame,
-    viable_ranges: pd.DataFrame,
     hypercube: np.ndarray,
     smart_comparison: bool,
 ):
     ## prepare
-    df = df.reset_index(drop=True).drop(columns=[c for c in df.columns if "fpath" in c])
-    df = pd.merge(left=df.reset_index(), right=viable_ranges, sort=False)
     df_ref = df[df.term == "ref"]
     # external info
     ordered_weights_keys = df_ref.apply(
@@ -253,7 +252,6 @@ def build_weighted_hypercube(
     term: str,
     comparison: str,
     df: pd.DataFrame,
-    viable_ranges: pd.DataFrame,
     hypercube: np.ndarray,
     smart_comparison: bool,
 ):
@@ -265,9 +263,7 @@ def build_weighted_hypercube(
         comparators_str,
         ordered_weights_keys,
         ordered_features,
-    ) = precompute_helpers_for_climate_score(
-        term, df, viable_ranges, hypercube, smart_comparison
-    )
+    ) = precompute_helpers_for_climate_score(term, df, hypercube, smart_comparison)
     weights = get_ordered_weights(ordered_weights_keys)
     # proceed to comparison
     if comparison == "map":
@@ -477,7 +473,7 @@ def save_fig():
 
 
 def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_demo):
-    df, df_aux, df_viable, hypercube, hypercube_aux = init(
+    df, df_aux, hypercube, hypercube_aux = init(
         metadata_path, metadata_aux_path, viable_path, hypercube_path, is_demo
     )
     col_img, col_selectors = st.columns(2)
@@ -486,7 +482,6 @@ def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_dem
             st.session_state[TERM_SELECTOR_KEY],
             st.session_state[COMPARISON_TYPE_SELECTOR_KEY],
             df,
-            df_viable,
             hypercube,
             smart_comparison=st.session_state[SMART_COMPARISON_TOGGLE_KEY],
         )
@@ -528,5 +523,6 @@ def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_dem
             with st.spinner("Getting best places wrt your parameters ..."):
                 search_and_display_tops(3, score)
 
-    with st.expander(label="Weight setting", expanded=True):
+    with st.form(key="weight_form"):
         render_weights_setters(df, value=1)
+        st.form_submit_button(label="Update map and insights")
