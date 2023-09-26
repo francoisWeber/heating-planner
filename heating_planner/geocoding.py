@@ -185,8 +185,8 @@ def convert_geo_to_xy(coords):
             ]
         ]
     )
-    x = intercept_x + np.sum(coords * coefs_x)
-    y = intercept_y + np.sum(coords * coefs_y)
+    x = int(intercept_x + np.sum(coords * coefs_x))
+    y = int(intercept_y + np.sum(coords * coefs_y))
     return y, x
 
 

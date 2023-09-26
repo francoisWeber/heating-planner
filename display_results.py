@@ -1,6 +1,7 @@
 import streamlit as st
 import click
 from heating_planner.streamlit import display2
+from heating_planner.streamlit.tools.utils import maybe_add_to_session_state
 from heating_planner.utils import load_pil_from_anywhere
 from streamlit_image_coordinates import streamlit_image_coordinates
 import numpy as np
@@ -10,6 +11,12 @@ import streamlit_authenticator as stauth
 
 st.set_page_config(layout="wide")
 st.title("Heating planner :sunglasses: ")
+
+REF_MAP_XY_KEY = "map_clicked_xy"
+REF_DESCRIPTION_KEY = "ref_description_key"
+
+maybe_add_to_session_state(REF_MAP_XY_KEY, None)
+maybe_add_to_session_state(REF_DESCRIPTION_KEY, None)
 
 with open("./credentials.yaml") as f:
     config = yaml.load(f, Loader=yaml.loader.SafeLoader)
@@ -56,10 +63,15 @@ def run(
             st.session_state.not_greated_yet = False
         is_demo = username == "demo"
         with st.expander("Select a reference location"):
-            if "map_clicked_xy" not in st.session_state:
-                st.session_statemap_clicked_xy = None
             base_map = st_load_pil_from_anywhere(basemap_path)
-            streamlit_image_coordinates(base_map, key="map_clicked_xy")
+            streamlit_image_coordinates(base_map, key=REF_MAP_XY_KEY)
+        with st.expander("Describe your ideal climate"):
+            if is_demo:
+                st.write("Another way of describing your reference if logged in")
+            else:
+                st.text_area(
+                    "Describe your ideal climate in French", key=REF_DESCRIPTION_KEY
+                )
 
         with st.container():
             display2.render(
