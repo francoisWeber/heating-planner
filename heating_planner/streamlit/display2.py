@@ -323,11 +323,18 @@ def pimp_score_with_auxiliary_data(
 def render_weights_setters(df: pd.DataFrame, value=1):
     init_weights(df, value=value, force=True)
     df = df[(df.term == "ref")]
+    # prepare labels and keys with emoji per opt direction
+    dir2emoji = {
+        "neutral": ":arrow_up_down:",
+        "less is better": ":arrow_lower_right:",
+        "more is better": ":arrow_upper_right:",
+    }
     df["key"] = df.apply(lambda s: serie2featurename(s, prefix=WEIGHT_PREFIX), axis=1)
-    df["label"] = df.apply(lambda s: f"{s.variable} during {s.season}", axis=1)
-
+    df["label"] = df.apply(
+        lambda s: " ".join([s.variable[:10], dir2emoji[s.optimal_direction]]),
+        axis=1,
+    )
     # gather info about variables anno vs seasons
-
     df_non_seasonal = df[(df.season == "anno")]
     df_season = df[df.season != "anno"]
     four_seasons = ["winter", "spring", "summer", "autumn"]
@@ -349,14 +356,14 @@ def render_weights_setters(df: pd.DataFrame, value=1):
                     value=value,
                     key=metadata.key,
                 )
-    # for col, (_, metadata) in zip(columns_anno_feats, df_anno.iterrows()):
+    # seasonal variables
     for i, season in enumerate(four_seasons):
         with st.container():
-            columns = st.columns(len(season_variables))
+            columns = st.columns([1] + [2] * (len(season_variables) - 1))
             for j, (col, variable) in enumerate(zip(columns, season_variables)):
                 with col:
                     if j == 0:
-                        text_center(season)
+                        st.text(season)
                     else:
                         ddf = df_season[
                             (df_season.variable == variable)
@@ -364,13 +371,13 @@ def render_weights_setters(df: pd.DataFrame, value=1):
                         ]
                         metadata = ddf.iloc[0]
                         st.slider(
-                            metadata.variable,
+                            metadata.label,
                             min_value=0,
                             max_value=5,
                             step=1,
                             value=value,
                             key=metadata.key,
-                            label_visibility="visible" if i == 0 else "hidden",
+                            # label_visibility="visible" if i == 0 else "hidden",
                         )
 
 
