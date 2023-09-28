@@ -159,8 +159,10 @@ def init(
     metadata_path, metadata_aux_path, viable_path, hypercube_path, is_demo: bool = False
 ):
     df = load_json(metadata_path)
-    df_aux = load_json(metadata_aux_path)
     df_viable = load_json(viable_path)
+    df = df.reset_index(drop=True).drop(columns=[c for c in df.columns if "fpath" in c])
+    df = pd.merge(left=df.reset_index(), right=df_viable, sort=False)
+    df_aux = load_json(metadata_aux_path)
     hypercube, hypercube_aux = load_hypercubes(hypercube_path)
     df_concat = pd.concat([df, df_aux])
     init_weights(df_concat)
@@ -169,7 +171,7 @@ def init(
     init_selectors(is_demo)
     for selector in st.session_state.selectors:
         maybe_add_to_session_state(selector.key, selector.default)
-    return df, df_aux, df_viable, hypercube, hypercube_aux
+    return df, df_aux, hypercube, hypercube_aux
 
 
 direction2function = {
@@ -218,13 +220,10 @@ def get_delta_hypercube_cached(hypercube_term, hypercube_ref, comparators_str):
 def precompute_helpers_for_climate_score(
     term: str,
     df: pd.DataFrame,
-    viable_ranges: pd.DataFrame,
     hypercube: np.ndarray,
     smart_comparison: bool,
 ):
     ## prepare
-    df = df.reset_index(drop=True).drop(columns=[c for c in df.columns if "fpath" in c])
-    df = pd.merge(left=df.reset_index(), right=viable_ranges, sort=False)
     df_ref = df[df.term == "ref"]
     # external info
     ordered_weights_keys = df_ref.apply(
@@ -253,7 +252,6 @@ def build_weighted_hypercube(
     term: str,
     comparison: str,
     df: pd.DataFrame,
-    viable_ranges: pd.DataFrame,
     hypercube: np.ndarray,
     smart_comparison: bool,
 ):
@@ -265,9 +263,7 @@ def build_weighted_hypercube(
         comparators_str,
         ordered_weights_keys,
         ordered_features,
-    ) = precompute_helpers_for_climate_score(
-        term, df, viable_ranges, hypercube, smart_comparison
-    )
+    ) = precompute_helpers_for_climate_score(term, df, hypercube, smart_comparison)
     weights = get_ordered_weights(ordered_weights_keys)
     # proceed to comparison
     if comparison == "map":
@@ -327,11 +323,18 @@ def pimp_score_with_auxiliary_data(
 def render_weights_setters(df: pd.DataFrame, value=1):
     init_weights(df, value=value, force=True)
     df = df[(df.term == "ref")]
+    # prepare labels and keys with emoji per opt direction
+    dir2emoji = {
+        "neutral": ":arrow_up_down:",
+        "less is better": ":arrow_lower_right:",
+        "more is better": ":arrow_upper_right:",
+    }
     df["key"] = df.apply(lambda s: serie2featurename(s, prefix=WEIGHT_PREFIX), axis=1)
-    df["label"] = df.apply(lambda s: f"{s.variable} during {s.season}", axis=1)
-
+    df["label"] = df.apply(
+        lambda s: " ".join([s.variable[:10], dir2emoji[s.optimal_direction]]),
+        axis=1,
+    )
     # gather info about variables anno vs seasons
-
     df_non_seasonal = df[(df.season == "anno")]
     df_season = df[df.season != "anno"]
     four_seasons = ["winter", "spring", "summer", "autumn"]
@@ -353,14 +356,14 @@ def render_weights_setters(df: pd.DataFrame, value=1):
                     value=value,
                     key=metadata.key,
                 )
-    # for col, (_, metadata) in zip(columns_anno_feats, df_anno.iterrows()):
+    # seasonal variables
     for i, season in enumerate(four_seasons):
         with st.container():
-            columns = st.columns(len(season_variables))
+            columns = st.columns([1] + [2] * (len(season_variables) - 1))
             for j, (col, variable) in enumerate(zip(columns, season_variables)):
                 with col:
                     if j == 0:
-                        text_center(season)
+                        st.text(season)
                     else:
                         ddf = df_season[
                             (df_season.variable == variable)
@@ -368,13 +371,13 @@ def render_weights_setters(df: pd.DataFrame, value=1):
                         ]
                         metadata = ddf.iloc[0]
                         st.slider(
-                            metadata.variable,
+                            metadata.label,
                             min_value=0,
                             max_value=5,
                             step=1,
                             value=value,
                             key=metadata.key,
-                            label_visibility="visible" if i == 0 else "hidden",
+                            # label_visibility="visible" if i == 0 else "hidden",
                         )
 
 
@@ -477,7 +480,7 @@ def save_fig():
 
 
 def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_demo):
-    df, df_aux, df_viable, hypercube, hypercube_aux = init(
+    df, df_aux, hypercube, hypercube_aux = init(
         metadata_path, metadata_aux_path, viable_path, hypercube_path, is_demo
     )
     col_img, col_selectors = st.columns(2)
@@ -486,7 +489,6 @@ def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_dem
             st.session_state[TERM_SELECTOR_KEY],
             st.session_state[COMPARISON_TYPE_SELECTOR_KEY],
             df,
-            df_viable,
             hypercube,
             smart_comparison=st.session_state[SMART_COMPARISON_TOGGLE_KEY],
         )
@@ -528,5 +530,6 @@ def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_dem
             with st.spinner("Getting best places wrt your parameters ..."):
                 search_and_display_tops(3, score)
 
-    with st.expander(label="Weight setting", expanded=True):
+    with st.form(key="weight_form"):
         render_weights_setters(df, value=1)
+        st.form_submit_button(label="Update map and insights")
