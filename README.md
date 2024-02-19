@@ -2,7 +2,7 @@
 
 ## Why
 
-Gathering open source data about global heating's geographic trends and merge them into a usable informative digest.
+Gathering open source data about global heating's geographic trends and merge them into a usable informative digest. Data come from French [DRIAS website](https://www.drias-climat.fr/). 
 Example here : https://heating-planner-yzaj3jxgfwpquuhq3ofx6t.streamlit.app/ 
 
 ## How to ?
