@@ -2,7 +2,8 @@
 
 ## Why
 
-Gathering open source data about global heating's geographic trends and merge them into a usable informative digest
+Gathering open source data about global heating's geographic trends and merge them into a usable informative digest.
+Example here : https://heating-planner-yzaj3jxgfwpquuhq3ofx6t.streamlit.app/ 
 
 ## How to ?
 
