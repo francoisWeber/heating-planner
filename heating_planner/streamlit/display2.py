@@ -57,10 +57,12 @@ POSITIVE_SCORES_BONUS_TOGGLE_KEY = "positive_score_bonus_key"
 SMART_COMPARISON_TOGGLE_KEY = "intelligent_comparison"
 COMPARISON_TYPE_SELECTOR_KEY = "comparison_kind_key"
 SCORE_CLICKED_POSITION_KEY = "scoremap_clicked_xy"
+COLORMAP_KEY = "colormap_key"
 COMPARISON_TYPE_OPTIONS = ["map", "point (if set)", "optimal ranges"]
 CITIES_TO_ANALYZE_KEY = "cities_to_analyze_key"
 INCREASE_CONTRAST_TOGGLE_KEY = "increased_contrast_toggle_key"
 REAL_ESTATE_POSSIBLE_VALUES = ["without", "log", "sqrt", "linear"]
+COLORMAP_VALUES = ["Purples", "RdYlGn", "Spectral", "gray"]
 
 mapping2fn = {
     "log": np.log,
@@ -129,6 +131,13 @@ def init_selectors(is_demo: bool):
             type="slider",
             values=REAL_ESTATE_POSSIBLE_VALUES,
             default=REAL_ESTATE_POSSIBLE_VALUES[0],
+        ),
+        Selector(
+            key=COLORMAP_KEY,
+            label="Which colormap ?",
+            type="slider",
+            values=COLORMAP_VALUES,
+            default=COLORMAP_VALUES[0],
         ),
     ]
     if not is_demo:
@@ -456,7 +465,7 @@ def search_and_display_tops(
 
 def draw_fig(score, term, comparison, real_estate, size=10):
     fig, _ = plt.subplots(figsize=(size, size))
-    plt.imshow(score, cmap="RdYlGn")  # RdYlGn, Spectral
+    plt.imshow(score, cmap=st.session_state[COLORMAP_KEY])  # RdYlGn, Spectral, Purples
     # plt.colorbar()
     plt.grid(which="both", alpha=0.5)
     _ = plt.xticks(ticks=np.arange(0, score.shape[1], step=20))
