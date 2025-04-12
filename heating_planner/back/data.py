@@ -4,7 +4,6 @@ import pandas as pd
 from loguru import logger
 from io import StringIO
 from heating_planner.back.geo import geo_tool
-from functools import lru_cache
 
 
 DRIAS_EXPORT_SECTION_MODEL = 1
@@ -78,7 +77,6 @@ class DriasDataset:
         df = pd.read_csv(data, sep=";").dropna(axis=0, subset="Contexte").dropna(axis=1, how="all").rename(columns=normalize_colname)
         return df
 
-    @lru_cache(maxsize=128)
     def get_index_of_city(self, city: str) -> dict:
         loc = geo_tool.geocode(city)
         dist_to_loc = self.df.apply(
