@@ -28,7 +28,7 @@ TWO_PI_IN_XY = 5751.1  # based on a calibration map
 
 geolocator = Nominatim(user_agent="fweber")
 geocode = partial(geolocator.geocode, language="fr")
-reverse_geocode = partial(geolocator.reverse, language="fr")
+reverse_geocode = partial(geolocator.reverse, language="fr", timeout=5)
 
 
 def clean_geocoded_address(address: str, rm_zip=True):

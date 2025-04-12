@@ -1,5 +1,4 @@
 import io
-from typing import List
 from matplotlib import pyplot as plt
 import streamlit as st
 import pandas as pd
@@ -319,7 +318,7 @@ def pimp_score_with_auxiliary_data(
         score = np.sign(score) * np.power(np.abs(score), 2)
         score = minmax_bounding(score, 1, 100)
 
-    if (_type := st.session_state[REAL_ESTATE_TOGGLE_KEY]) is not "without":
+    if (_type := st.session_state[REAL_ESTATE_TOGGLE_KEY]) != "without":
         fn = mapping2fn[_type]
         df = df_aux[df_aux.variable == "realEstate"]
         score_aux = hypercube_aux[:, :, df.index[0]]
@@ -441,7 +440,7 @@ def search_and_display_tops(
     top_score = score.copy()
     xys_of_tops = []
     score_of_tops = []
-    window_size = 7
+    window_size = 20
     for i in range(top):
         id_of_max = np.nanargmax(top_score)
         xy = np.unravel_index(id_of_max, score.shape)
@@ -461,6 +460,7 @@ def search_and_display_tops(
     ]
     str_of_top = [f"**TOP {i+1}** : {name}" for i, name in enumerate(name_of_top)]
     st.markdown("\n\n".join(str_of_top))
+    
 
 
 def draw_fig(score, term, comparison, real_estate, size=10):
@@ -472,6 +472,7 @@ def draw_fig(score, term, comparison, real_estate, size=10):
     _ = plt.yticks(ticks=np.arange(0, score.shape[0], step=20))
     title = create_title(term, comparison, real_estate)
     plt.title(title)
+    plt.colorbar()
     return fig
 
 
@@ -494,6 +495,7 @@ def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_dem
     )
     col_img, col_selectors = st.columns(2)
     with col_img:
+        clip = st.slider("min max sur la carte", 0, 100, (0, 100))
         hypercube, ordered_features = build_weighted_hypercube(
             st.session_state[TERM_SELECTOR_KEY],
             st.session_state[COMPARISON_TYPE_SELECTOR_KEY],
@@ -503,6 +505,7 @@ def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_dem
         )
         score = hypercube.mean(axis=-1)
         score = pimp_score_with_auxiliary_data(score, df_aux, hypercube_aux)
+        score = np.where(clip[0] >= score, np.nan, score)
         try:
             fig = draw_fig(
                 score,
@@ -537,7 +540,7 @@ def render(metadata_path, metadata_aux_path, viable_path, hypercube_path, is_dem
                 st.text(e)
         with col_top:
             with st.spinner("Getting best places wrt your parameters ..."):
-                search_and_display_tops(3, score)
+                search_and_display_tops(30, score)
 
     with st.form(key="weight_form"):
         render_weights_setters(df, value=1)

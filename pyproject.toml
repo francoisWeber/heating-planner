@@ -21,6 +21,8 @@ matplotlib = "^3.7.2"
 ipykernel = "^6.25.1"
 streamlit-image-coordinates = "^0.1.6"
 streamlit-authenticator = "^0.2.3"
+seaborn = "^0.13.2"
+ruff = "^0.11.4"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -31,3 +33,6 @@ ipykernel = "*"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 140
