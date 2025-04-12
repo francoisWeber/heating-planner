@@ -2,35 +2,28 @@ import streamlit as st
 
 from heating_planner.front.histogram import InteractiveHistogram
 from heating_planner.front.loading import load_drias_dataset
+from heating_planner.front.tabs import parameters
 
 st.set_page_config(layout="wide")
 
 tabs = st.tabs(["Params", "Reference definition", "Map"])
 
 PARAMS_INIT = {
-    "loaded": False
+    **parameters.PARAMS_INIT,
 }
 for key, value in PARAMS_INIT.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
 with tabs[0]:
-    st.subheader("Parameters")
-    input_file_ref = st.text_input("Reference file", "/Users/francois.weber/perso/tmp/drias_ref_indicesMAX_25041011522929379.txt")
-    input_file_proj = st.text_input("Projection file", "/Users/francois.weber/perso/tmp/drias_data_20250_max_indicesMAX_25040910182929192.txt")
-    
-    if input_file_proj and input_file_ref:
-        load_drias_dataset(input_file_proj)
-        load_drias_dataset(input_file_ref)
-        st.session_state.loaded = True
-        st.markdown(":heavy_check_mark: Files loaded")
+    parameters.display()
     
 with tabs[1]:
     st.subheader("Reference definition")
     if st.session_state.loaded:
     
-        dataset_proj = load_drias_dataset(input_file_proj)
-        dataset_ref = load_drias_dataset(input_file_ref)
+        dataset_proj = st.session_state.dataset_proj
+        dataset_ref = st.session_state.dataset_ref
         
         ref_keys = set(dataset_ref.columns_definition.keys())
         proj_keys = set(dataset_proj.columns_definition.keys())
