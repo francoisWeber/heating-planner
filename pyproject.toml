@@ -23,6 +23,7 @@ streamlit-image-coordinates = "^0.1.6"
 streamlit-authenticator = "^0.2.3"
 seaborn = "^0.13.2"
 ruff = "^0.11.4"
+geopandas = "^1.0.1"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -14,32 +14,31 @@ class InteractiveHistogram:
         self.max_val = m.ceil(data.max())
         self.nbins = nbins
         self.chart = self.create_altair_base_chart()
-        
+
     def get_slider_args(self):
         slider_kwargs = {
-            "label": f"Histogram for {self.var}", 
-            "min_value": self.min_val, 
-            "max_value": self.max_val, 
-            "value": (self.min_val, self.max_val), 
+            "label": f"Histogram for {self.var}",
+            "min_value": self.min_val,
+            "max_value": self.max_val,
+            "value": (self.min_val, self.max_val),
         }
-        
+
         return slider_kwargs
-    
+
     def create_altair_base_chart(self):
         chart = (
             alt.Chart(self.data)
             .transform_bin("binned_value", field=self.var, bin=alt.Bin(maxbins=self.nbins))
             .transform_aggregate(count="count()", groupby=["binned_value"])
         )
-        
+
         # Create vertical rules with text labels
-        
-        return chart # + ref_lines + ref_labels
-    
+
+        return chart  # + ref_lines + ref_labels
+
     def alter_chart_between_range(self, min_val, max_val, width=600, height=400):
         chart = (
-            self.chart
-            .transform_calculate(highlight=f"{min_val} <= datum.binned_value && datum.binned_value < {max_val}")
+            self.chart.transform_calculate(highlight=f"{min_val} <= datum.binned_value && datum.binned_value < {max_val}")
             .mark_bar()
             .encode(
                 x=alt.X("binned_value:Q", title=self.var),
@@ -48,18 +47,24 @@ class InteractiveHistogram:
             )
             .properties(width=width, height=height, title=self.title)
         )
-        
-        ref_lines = alt.Chart(self.ref).mark_rule(strokeWidth=2).encode(
-            x=f"{self.var}:Q",
-            color=alt.Color("label:N", legend=None)  # Assign color based on the label
+
+        ref_lines = (
+            alt.Chart(self.ref)
+            .mark_rule(strokeWidth=2)
+            .encode(
+                x=f"{self.var}:Q",
+                color=alt.Color("label:N", legend=None),  # Assign color based on the label
+            )
         )
-        ref_labels = alt.Chart(self.ref).mark_text(align="left", dy=-5, dx=2, fontSize=16).encode(
-            x=f"{self.var}:Q",
-            y=alt.Y("row_number:O", title=None, axis=None, sort="descending"),  # Stagger labels vertically
-            text="label:N",
-            color=alt.Color("label:N", legend=None)  # Assign color based on the label
-        ).transform_window(
-            row_number="row_number()",
-            sort=[alt.SortField(f"{self.var}:Q", order="ascending")]
+        ref_labels = (
+            alt.Chart(self.ref)
+            .mark_text(align="left", dy=-5, dx=2, fontSize=16)
+            .encode(
+                x=f"{self.var}:Q",
+                y=alt.Y("row_number:O", title=None, axis=None, sort="descending"),  # Stagger labels vertically
+                text="label:N",
+                color=alt.Color("label:N", legend=None),  # Assign color based on the label
+            )
+            .transform_window(row_number="row_number()", sort=[alt.SortField(f"{self.var}:Q", order="ascending")])
         )
         return chart + ref_lines + ref_labels
