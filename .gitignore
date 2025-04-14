@@ -1,7 +1,6 @@
 *.ipynb
 
 # specific to project
-data*/
 custom_converter
 env-init.sh
 

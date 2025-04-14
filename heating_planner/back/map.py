@@ -1,7 +1,7 @@
 import pandas as pd
 from heating_planner.back.data.drias import DriasDataset
 from heating_planner.back.geo import project_to_grid
-from heating_planner.back.scoring import DriasScoring
+from heating_planner.back.scoring import HazardScoring
 
 import numpy as np
 
@@ -19,7 +19,7 @@ class DriasMap:
         df["y"] = (self.grid_size - 1) - y  # because of img inversion
         return df
 
-    def prepare_score_map(self, scoring: DriasScoring):
+    def prepare_score_map(self, scoring: HazardScoring):
         grid = np.zeros((self.grid_size, self.grid_size), dtype=int)
         scores = scoring.apply()
         grid[self.df.y, self.df.x] = scores.ravel()

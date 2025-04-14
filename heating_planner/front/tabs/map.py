@@ -1,10 +1,24 @@
 from matplotlib import pyplot as plt
 import streamlit as st
-from heating_planner.back.map import DriasMap
-from heating_planner.back.scoring import WeightedDriasScoring
+from heating_planner.back.data.base import HazardDataset
+from heating_planner.back.scoring import HazardScoring
 
 PARAMS_INIT = {"a": 1}
-
+RESTRICT_TO_KEYS = ['nortmm_seas_jja',
+    'nortxm_seas_jja',
+    'nortx35d_yr',
+    'nortx30d_yr',
+    'nortr_yr',
+    'norrr_yr',
+    'norrr_seas_jja',
+    'norrr_seas_djf',
+    'norrrq99_yr',
+    'norrx1d_yr',
+    'norrrq99refd_yr',
+    'norifm40_yr',
+    'norswi04_yr',
+    # 'clay_hazard'
+    ]
 
 def display():
     st.title("Map")
@@ -12,28 +26,14 @@ def display():
         st.warning("Please load the files first")
         st.button("retry")
     else:
-        dataset = st.session_state.dataset_proj
-        coefs = {
-            "nortmm_seas_jja": -1,
-            "nortmm_seas_djf": 1,
-            "nortxm_seas_jja": -1,
-            "nortx35d_yr": -1,
-            "nortx30d_yr": -1,
-            "nortr_yr": -1,
-            "norrr_yr": 1,
-            "norrr_seas_jja": 1,
-            "norrr_seas_djf": 1,
-            "norrrq99_yr": -1,
-            "norrx1d_yr": -1,
-            "norrrq99refd_yr": -1,
-            "norifm40_yr": -1,
-            "norswi04_yr": -1,
-            "atx35d_yr": -1,
-            "atx30d_yr": -1,
-        }
-        map = DriasMap(dataset)
-        scoring = WeightedDriasScoring(dataset.df, coefs)
-        map_ = map.prepare_score_map(scoring)
-        fig, _ = plt.subplots()
-        plt.imshow(map_)
-        st.pyplot(fig)
+        hazard_dataset : HazardDataset = st.session_state.dataset_proj
+        scoring = HazardScoring(hazard_dataset)
+        cols = st.columns([2, 1, 1])
+        coefs = {key: 1 for key in RESTRICT_TO_KEYS}
+        for i, key in enumerate(coefs.keys()):
+            with cols[1 + i % 2]:
+                coefs[key] = st.slider(f"coeff {hazard_dataset.columns_definition[key][:50]}", 0, 3, step=1)
+        with cols[0]:
+            fig, ax = plt.subplots()
+            scoring.compute_rrf_score(coefs).plot("score", ax=ax, legend=True, cmap="RdYlGn")
+            st.pyplot(fig)

@@ -11,11 +11,13 @@ for key, value in PARAMS_INIT.items():
     if key not in st.session_state:
         st.session_state[key] = value
 
-with tabs[0]:
-    map.display()
 
 with tabs[1]:
     parameters.display()
+    
+if st.session_state.loaded:
+    with tabs[0]:
+        map.display()
 
-with tabs[2]:
-    reference_definition.display()
+    with tabs[2]:
+        reference_definition.display()

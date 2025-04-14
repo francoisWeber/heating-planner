@@ -1,23 +1,26 @@
 import geopandas as gpd
-from typing import List
+from typing import Dict, List
 import numpy as np
-from abc import abstractmethod
+from heating_planner.back.tools import minmax_scale
 
+from heating_planner.back.data.base import HazardDataset
 
-class DriasScoring:
-    def __init__(self, datasets: List[gpd.GeoDataFrame]):
-        self.dfs = dfs
-        self.df = self._merge_gdf(dfs)
-        self.columns_definition = None
+SCORE_COL = "score"
 
-    def _merge_gdf(self, dfs: List[gpd.GeoDataFrame]) -> gpd.GeoDataFrame:
-        merged = dfs[0]
-        for df in dfs[1:]:
-            merged = gpd.sjoin_nearest(merged, df, how="inner").drop(columns=["index_right"])
-        return merged
-
-    def _merge_columns_definitions(self, dfs: List[gpd.GeoDataFrame]) -> dict:
-        merged = {}
-        for df in dfs:
-            merged.update(df.columns_definition)
-        return merged
+class HazardScoring:
+    def __init__(self, hazard_dataset: HazardDataset):
+        self.df = hazard_dataset.df
+        self.columns_definition = hazard_dataset.columns_definition
+        self.ranked_df = self._compute_colwise_ranking()
+    
+    def _compute_colwise_ranking(self) -> gpd.GeoDataFrame:
+        return self.df[self.columns_definition.keys()].rank()
+    
+    def compute_rrf_score(self, coefs: Dict[str, float] | None = None) -> gpd.GeoDataFrame:
+        if coefs is None:
+            coefs = {k: 1.0 for k in self.columns_definition.keys()}
+        if missing_keys:=(set(coefs.keys()) - set(self.columns_definition.keys())):
+            raise ValueError("Missing keys in coefs: " + str(missing_keys))
+        rrf_score = -1 / np.dot(1 / self.ranked_df[coefs.keys()], np.array(list(coefs.values())))
+        self.df[SCORE_COL] = minmax_scale(rrf_score)
+        return self.df
