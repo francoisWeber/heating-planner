@@ -1,4 +1,5 @@
 import streamlit as st
+from heating_planner.front.cst import VAR_TREND_2_EMOJI
 from heating_planner.front.histogram import InteractiveHistogram
 import json
 
@@ -39,7 +40,9 @@ def display():
         for i, key in enumerate(common_keys):
             with cols[i % NCOL]:
                 st.subheader(key)
-                st.write(dataset_proj.columns_definition[key])
+                var_definition = dataset_proj.columns_definition[key]
+                var_trend = VAR_TREND_2_EMOJI[dataset_proj.trend_preferences[key]]
+                st.write(var_definition + " " + var_trend)
                 hist_name = f"chart-{key}"
                 if hist_name not in st.session_state:
                     st.session_state[hist_name] = InteractiveHistogram(dataset_ref.df[key], key, ref_values[key])

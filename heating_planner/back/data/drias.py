@@ -34,6 +34,7 @@ class DriasDataset(HazardDataset):
         scenario = cls.get_scenario_from_lines(raw_lines, sections_loc)
         columns_definition = cls.get_columns_definition_from_lines(raw_lines, sections_loc)
         df = cls.get_df_from_lines(raw_lines, sections_loc)
+        trend_preferences = HazardDataset.find_and_load_trend_preferences(path)
         
         return cls(
             path=path,
@@ -41,6 +42,7 @@ class DriasDataset(HazardDataset):
             columns_definition=columns_definition,
             model=model,
             scenario=scenario,
+            trend_preferences=trend_preferences
         )
 
     def __hash__(self):
@@ -90,30 +92,3 @@ class DriasDataset(HazardDataset):
         df = pd.read_csv(data, sep=";").dropna(axis=0, subset="Contexte").dropna(axis=1, how="all").rename(columns=normalize_colname)
         df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs="EPSG:4326")
         return df
-
-    def display_histograms(self, ref_locations: List[int | str] | None = None, **hist_kwargs):
-        ref_locations = ref_locations or []
-        ref_loc_names = [loc if isinstance(loc, str) else f"ref-{i}" for i, loc in enumerate(ref_locations)]
-        ref_loc_lines = [loc if isinstance(loc, int) else self.get_index_of_city(loc) for loc in ref_locations]
-        ddf = self.df.drop(columns=["point", "latitude", "longitude", "contexte"])
-        num_columns = len(ddf.columns)
-        num_rows = 1 + (num_columns + 3) // 4  # Calculate the number of rows needed for 3 columns
-        fig, axes = plt.subplots(num_rows, 3, figsize=(15, 5 * num_rows))
-        axes = axes.flatten()
-
-        _hist_kwargs = {"bins": 30, "alpha": 0.7, "density": True, "log": True}
-        _hist_kwargs.update(hist_kwargs)
-
-        for i, column in enumerate(ddf.columns):
-            ddf[column].hist(ax=axes[i], **_hist_kwargs)
-            for ref_line, ref_city in zip(ref_loc_lines, ref_loc_names):
-                axes[i].vlines(
-                    self.df.iloc[ref_line][column],
-                    ymin=0,
-                    ymax=axes[i].get_ylim()[1],
-                    label=ref_city,
-                    colors=plt.cm.tab10(ref_loc_lines.index(ref_line) % 10),  # Use a colormap for distinct colors
-                )
-            axes[i].set_title(self.columns_definition[column][:40])
-            axes[i].legend()
-        return fig
