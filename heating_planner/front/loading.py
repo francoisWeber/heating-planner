@@ -1,6 +1,6 @@
 import streamlit as st
 
-from heating_planner.back.data import DriasDataset
+from heating_planner.back.data.drias import DriasDataset
 
 import streamlit as st
 

@@ -1,19 +1,23 @@
-import pandas as pd
+import geopandas as gpd
+from typing import List
 import numpy as np
 from abc import abstractmethod
 
 
 class DriasScoring:
-    @abstractmethod
-    def apply(self): ...
+    def __init__(self, datasets: List[gpd.GeoDataFrame]):
+        self.dfs = dfs
+        self.df = self._merge_gdf(dfs)
+        self.columns_definition = None
 
+    def _merge_gdf(self, dfs: List[gpd.GeoDataFrame]) -> gpd.GeoDataFrame:
+        merged = dfs[0]
+        for df in dfs[1:]:
+            merged = gpd.sjoin_nearest(merged, df, how="inner").drop(columns=["index_right"])
+        return merged
 
-class WeightedDriasScoring(DriasScoring):
-    def __init__(self, df: pd.DataFrame, coefs: dict):
-        self.df = df
-        self.coefs = coefs
-
-    def apply(self):
-        data = self.df[list(self.coefs.keys())].to_numpy()
-        ordered_coefs = np.array(list(self.coefs.values())).reshape(-1, 1)
-        return data.dot(ordered_coefs)
+    def _merge_columns_definitions(self, dfs: List[gpd.GeoDataFrame]) -> dict:
+        merged = {}
+        for df in dfs:
+            merged.update(df.columns_definition)
+        return merged

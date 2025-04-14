@@ -1,5 +1,5 @@
 import pandas as pd
-from heating_planner.back.data import DriasDataset
+from heating_planner.back.data.drias import DriasDataset
 from heating_planner.back.geo import project_to_grid
 from heating_planner.back.scoring import DriasScoring
 
