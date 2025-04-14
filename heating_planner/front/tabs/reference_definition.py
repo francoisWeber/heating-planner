@@ -1,5 +1,6 @@
 import streamlit as st
 from heating_planner.front.histogram import InteractiveHistogram
+import json
 
 DEFAULT_REF_CITIES = "Strasbourg, L'Aigle, Morlaix"
 
@@ -19,7 +20,16 @@ def display():
         proj_keys = set(dataset_proj.columns_definition.keys())
         common_keys = sorted(list(ref_keys.intersection(proj_keys)))
 
-        ref_cities = st.text_input("Cities", value=DEFAULT_REF_CITIES)
+        cols = st.columns(3)
+        with cols[0]:
+            ref_cities = st.text_input("Cities", value=DEFAULT_REF_CITIES)
+        with cols[1]:
+            st.download_button(
+                label="Download reference ranges",
+                data=json.dumps(st.session_state.reference_ranges, indent=4),
+                file_name="reference_ranges.json",
+                mime="application/json",
+            )
         ref_cities = [city.strip() for city in ref_cities.split(",")]
         ref_indices = [dataset_ref.get_index_of_city(city) for city in ref_cities]
         ref_values = {key: {city: dataset_ref.df.iloc[index][key] for city, index in zip(ref_cities, ref_indices)} for key in common_keys}

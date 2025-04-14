@@ -42,7 +42,7 @@ class InteractiveHistogram:
             .mark_bar()
             .encode(
                 x=alt.X("binned_value:Q", title=self.var),
-                y=alt.Y("count:Q", title="Count"),
+                y=alt.Y("count:Q", title="Count", axis=None),
                 color=alt.condition("datum.highlight", alt.value("orange"), alt.value("lightgray")),
             )
             .properties(width=width, height=height, title=self.title)

@@ -8,12 +8,16 @@ PARAMS_INIT = {
     "dataset_proj": None,
 }
 
+drias_ref_path = "/Users/francois.weber/perso/tmp/heating2/data/drias/drias_ref_indicesMAX_25041011522929379.txt"
+drias_proj_path = "/Users/francois.weber/perso/tmp/heating2/data/drias/drias_data_20250_max_indicesMAX_25040910182929192.txt"
+clay_path = "/Users/francois.weber/perso/tmp/heating2/data/clay"
+sea_elevation_path = "/Users/francois.weber/perso/tmp/heating2/data/overflow_1m"
 
 def display():
     st.subheader("Parameters")
-    input_file_ref = st.text_input("Reference file", "/Users/francois.weber/perso/tmp/drias_ref_indicesMAX_25041011522929379.txt")
+    input_file_ref = st.text_input("Reference file", drias_ref_path)
     input_file_proj = st.text_input(
-        "Projection file", "/Users/francois.weber/perso/tmp/drias_data_20250_max_indicesMAX_25040910182929192.txt"
+        "Projection file", drias_proj_path
     )
 
     if input_file_proj and input_file_ref:
