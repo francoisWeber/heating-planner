@@ -21,6 +21,7 @@ class InteractiveHistogram:
             "min_value": self.min_val,
             "max_value": self.max_val,
             "value": (self.min_val, self.max_val),
+            "key": f"slider-{self.var}",
         }
 
         return slider_kwargs
