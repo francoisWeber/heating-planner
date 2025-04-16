@@ -32,17 +32,17 @@ class DriasDataset(HazardDataset):
 
         model = cls.get_model_from_lines(raw_lines, sections_loc)
         scenario = cls.get_scenario_from_lines(raw_lines, sections_loc)
-        columns_definition = cls.get_columns_definition_from_lines(raw_lines, sections_loc)
+        factors_definitions = cls.get_factors_definition_from_lines(raw_lines, sections_loc)
         df = cls.get_df_from_lines(raw_lines, sections_loc)
-        trend_preferences = HazardDataset.find_and_load_trend_preferences(path)
+        factors_types = HazardDataset.find_and_load_factors_types(path)
         
         return cls(
             path=path,
             df=df,
-            columns_definition=columns_definition,
+            factors_definitions=factors_definitions,
             model=model,
             scenario=scenario,
-            trend_preferences=trend_preferences
+            factors_types=factors_types
         )
 
     def __hash__(self):
@@ -72,7 +72,7 @@ class DriasDataset(HazardDataset):
         logger.warning("Scenario not found in DRIAS export file")
 
     @staticmethod
-    def get_columns_definition_from_lines(raw_lines: list[str], sections_loc) -> pd.DataFrame:
+    def get_factors_definition_from_lines(raw_lines: list[str], sections_loc) -> pd.DataFrame:
         sec_id = DRIAS_EXPORT_SECTION_COLUMNS_DEF
         lines = raw_lines[sections_loc[sec_id] + 2 : sections_loc[sec_id + 1]]
         columns = {}

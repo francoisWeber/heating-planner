@@ -33,8 +33,8 @@ def display():
         coefs = {key: 1 for key in RESTRICT_TO_KEYS}
         for i, key in enumerate(coefs.keys()):
             with cols[1 + i % 2]:
-                var_definition = hazard_dataset.columns_definition[key]
-                var_trend = VAR_TREND_2_EMOJI[hazard_dataset.trend_preferences[key]]
+                var_definition = hazard_dataset.factors_definitions[key]
+                var_trend = VAR_TREND_2_EMOJI[hazard_dataset.factors_types[key]]
                 coefs[key] = st.slider(f"coeff {var_definition[:50]} ({var_trend})", 0, 3, step=1, value=1)
         with cols[0]:
             fig, ax = plt.subplots()

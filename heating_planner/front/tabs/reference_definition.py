@@ -17,8 +17,8 @@ def display():
         dataset_proj = st.session_state.dataset_proj
         dataset_ref = st.session_state.dataset_ref
 
-        ref_keys = set(dataset_ref.columns_definition.keys())
-        proj_keys = set(dataset_proj.columns_definition.keys())
+        ref_keys = set(dataset_ref.factors_definitions.keys())
+        proj_keys = set(dataset_proj.factors_definitions.keys())
         common_keys = sorted(list(ref_keys.intersection(proj_keys)))
 
         cols = st.columns(3)
@@ -40,8 +40,8 @@ def display():
         for i, key in enumerate(common_keys):
             with cols[i % NCOL]:
                 st.subheader(key)
-                var_definition = dataset_proj.columns_definition[key]
-                var_trend = VAR_TREND_2_EMOJI[dataset_proj.trend_preferences[key]]
+                var_definition = dataset_proj.factors_definitions[key]
+                var_trend = VAR_TREND_2_EMOJI[dataset_proj.factors_types[key]]
                 st.write(var_definition + " " + var_trend)
                 hist_name = f"chart-{key}"
                 if hist_name not in st.session_state:

@@ -3,21 +3,25 @@ import geopandas as gpd
 from shapely.geometry import Point
 import json
 import os
+from enum import StrEnum
+
+class FactorType(StrEnum):
+    HIGHER_BETTER = "higher_better"
+    LOWER_BETTER = "lower_better"
+    NEUTRAL = "neutral"
+    BINARY = "binary"
 
 TREND_PREFERENCES_FNAME = "trend_preference_per_var.json"
-HIGHER_BETTER = "higher_better"
-LOWER_BETTER = "lower_better"
-NEUTRAL = "neutral"
 
 class HazardDataset:
-    def __init__(self, path: str | None = None, df: gpd.GeoDataFrame | None = None, columns_definition: dict | None = None, model: str | None = None, scenario: str | None = None, is_boolean: bool = False, trend_preferences: dict | None = None):
+    def __init__(self, path: str | None = None, df: gpd.GeoDataFrame | None = None, factors_definitions: dict | None = None, model: str | None = None, scenario: str | None = None, is_boolean: bool = False, factors_types: dict | None = None):
         self.path = path
         self.df = df
-        self.columns_definition = columns_definition
+        self.factors_definitions = factors_definitions
         self.model = model
         self.scenario = scenario
         self.is_boolean = is_boolean
-        self.trend_preferences = trend_preferences
+        self.factors_types = factors_types
     
     @classmethod
     def load_from_path(cls, path: str):
@@ -25,7 +29,7 @@ class HazardDataset:
         raise NotImplementedError("Must be implemented in subclass")
     
     @staticmethod
-    def find_and_load_trend_preferences(path):
+    def find_and_load_factors_types(path):
         if os.path.isdir(path):
             json_path = os.path.join(path, TREND_PREFERENCES_FNAME)
         elif os.path.isfile(path):
@@ -53,12 +57,12 @@ class HazardDataset:
         
         merged_df = gpd.sjoin_nearest(self.df, other.df, how="inner").drop(columns=["index_right"])
         path = f"{self.path}_{other.path}"
-        columns_definition = {**self.columns_definition, **other.columns_definition}
+        factors_definitions = {**self.factors_definitions, **other.factors_definitions}
         model = f"{self.model}_{other.model}"
         scenario = f"{self.scenario}_{other.scenario}"
-        trend_preference = {**self.trend_preferences, **other.trend_preferences}
+        factors_types = {**self.factors_types, **other.factors_types}
         is_boolean = self.is_boolean and other.is_boolean
-        return HazardDataset(df=merged_df, path=path, columns_definition=columns_definition, model=model, scenario=scenario, trend_preferences=trend_preference, is_boolean=is_boolean)
+        return HazardDataset(df=merged_df, path=path, factors_definitions=factors_definitions, model=model, scenario=scenario, factors_types=factors_types, is_boolean=is_boolean)
     
     def __radd__(self, other: "HazardDataset"):
         if other == None:

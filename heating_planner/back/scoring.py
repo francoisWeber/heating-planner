@@ -2,30 +2,38 @@ import geopandas as gpd
 from typing import Dict, List
 from loguru import logger
 import numpy as np
+import pandas as pd
 from heating_planner.back.tools import minmax_scale
 
-from heating_planner.back.data.base import HazardDataset, LOWER_BETTER, HIGHER_BETTER, NEUTRAL
+from heating_planner.back.data.base import HazardDataset, FactorType 
 
 SCORE_COL = "score"
+
+class ScoresFusion:
+    @staticmethod
+    def reciprocal_rank_fusion(df: pd.DataFrame, coefs: Dict[str, float], trends_preferences: Dict[str, FactorType]) -> np.ndarray:
+        """
+        Computes the Reciprocal Rank Fusion (RRF) score for a given DataFrame, variable-wise trends and coefficients.
+        """
+        usable_cols = []
+        usable_coefs = []
+        usable_ascending = []
+        for col in df.columns:
+            if coefs[col] == 0 or trends_preferences[col] not in [FactorType.HIGHER_BETTER, FactorType.LOWER_BETTER]:
+                continue
+            usable_cols.append(col)
+            usable_coefs.append(coefs[col])
+            usable_ascending.append(trends_preferences[col] == FactorType.LOWER_BETTER)
+            
+        rrf = 1 / (1 / pd.concat([df[col].rank(ascending=ascending) for col, ascending in zip(usable_cols, usable_ascending)], axis=1)).sum(axis=1)
+        return rrf
+    
 
 class HazardScoring:
     def __init__(self, hazard_dataset: HazardDataset):
         self.df = hazard_dataset.df
-        self.columns_definition = hazard_dataset.columns_definition
-        self.trend_preferences = hazard_dataset.trend_preferences
-        self.ranked_df = self._compute_colwise_ranking()
-    
-    def _compute_colwise_ranking(self) -> gpd.GeoDataFrame:
-        vars2ascending = {}
-        for variable, trend in self.trend_preferences.items():
-            if trend == HIGHER_BETTER:
-                vars2ascending[variable] = False
-            elif trend == LOWER_BETTER:
-                vars2ascending[variable] = True
-            else:
-                logger.warning(f"Unknown trend preference for {variable}: {trend} -> skipping this variable")
-            
-        return self.df[vars2ascending.keys()].rank(ascending=vars2ascending.values())
+        self.columns_definition = hazard_dataset.factors_definitions
+        self.trend_preferences = hazard_dataset.factors_types
     
     def compute_rrf_score(self, coefs: Dict[str, float] | None = None) -> gpd.GeoDataFrame:
         if coefs is None:
@@ -33,8 +41,9 @@ class HazardScoring:
         if missing_keys:=(set(coefs.keys()) - set(self.columns_definition.keys())):
             raise ValueError("Missing keys in coefs: " + str(missing_keys))
         
-        coefs = {k: v for k, v in coefs.items() if self.trend_preferences[k] != NEUTRAL}
-        
-        rrf_score = -1 / np.dot(1 / self.ranked_df[coefs.keys()], np.array(list(coefs.values())))
-        self.df[SCORE_COL] = minmax_scale(rrf_score)
+        rrf = ScoresFusion.reciprocal_rank_fusion(self.df[coefs.keys()], coefs, self.trend_preferences)
+        self.df[SCORE_COL] = minmax_scale(-1 * rrf**2)
         return self.df
+    
+        
+        

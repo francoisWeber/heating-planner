@@ -1,8 +1,8 @@
 import geopandas as gpd
 
-from heating_planner.back.data.base import LOWER_BETTER, HazardDataset
+from heating_planner.back.data.base import FactorType, HazardDataset
 
-COLUMN_DEFINITION = {"clay_hazard": "Niveau de risque de retrait-gonflement des argiles (3 niveaux)"}
+FACTORS_DEFINITION = {"clay_hazard": "Niveau de risque de retrait-gonflement des argiles (3 niveaux)"}
 MODEL = "georisques"
 SCENARIO = "historique"
 VAR_NAME = "clay_hazard"
@@ -12,8 +12,8 @@ class ClayHazardDataset(HazardDataset):
     https://www.georisques.gouv.fr/donnees/bases-de-donnees/retrait-gonflement-des-argiles
     """
     def __init__(self, path: str, df: gpd.GeoDataFrame | None = None):
-        trend_preferences = {VAR_NAME: LOWER_BETTER}
-        super().__init__(path=path, df=df, columns_definition=COLUMN_DEFINITION, model=MODEL, scenario=SCENARIO, trend_preferences=trend_preferences)
+        trend_preferences = {VAR_NAME: FactorType.LOWER_BETTER}
+        super().__init__(path=path, df=df, factors_definitions=FACTORS_DEFINITION, model=MODEL, scenario=SCENARIO, factors_types=trend_preferences)
 
     @classmethod
     def load_from_path(cls, path: str):
