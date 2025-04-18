@@ -6,6 +6,7 @@ FACTOR_NAME = "clay_hazard"
 FACTOR_DEF = "Niveau de risque de retrait-gonflement des argiles (3 niveaux)"
 FACTOR_TREND = FactorTrend.LOWER_BETTER
 FACTOR_TYPE = FactorType.DISCRETE
+FACTOR_UNIT = "3-level"
 
 MODEL = "georisques"
 SCENARIO = "historique"
@@ -23,7 +24,7 @@ class ClayHazardDataset(HazardDataset):
         df = df.drop(columns=["DPT", "ALEA"]).rename(columns={"NIVEAU": VAR_NAME})
         df = df.to_crs(epsg=4326)  # Convert to WGS84
 
-        factors = [Factor(name=VAR_NAME, description=FACTOR_DEF, trend=FACTOR_TREND, type=FACTOR_TYPE)]
+        factors = [Factor(name=VAR_NAME, description=FACTOR_DEF, trend=FACTOR_TREND, type=FACTOR_TYPE, unit=FACTOR_UNIT)]
 
         return cls(
             path=path,

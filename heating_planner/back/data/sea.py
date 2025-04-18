@@ -6,6 +6,7 @@ FACTOR_NAME = "overflood"
 FACTOR_DESCR = "Zones touchées par la montée des eaux (1m d'élévation)"
 FACTOR_TREND = FactorTrend.LOWER_BETTER
 FACTOR_TYPE = FactorType.BINARY
+FACTOR_UNIT = "binary submersion"
 
 MODEL = "sealevelrise.brgm.fr"
 SCENARIO = "1m elevation"
@@ -24,5 +25,5 @@ class SeaElevationDataset(HazardDataset):
             df=df,
             model=MODEL,
             scenario=SCENARIO,
-            factors=[Factor(name=FACTOR_NAME, description=FACTOR_DESCR, trend=FACTOR_TREND, type=FACTOR_TYPE)],
+            factors=[Factor(name=FACTOR_NAME, description=FACTOR_DESCR, trend=FACTOR_TREND, type=FACTOR_TYPE, unit=FACTOR_UNIT)],
         )

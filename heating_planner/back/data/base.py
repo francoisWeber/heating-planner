@@ -35,9 +35,16 @@ class Factor:
     description: str
     trend: FactorTrend
     type: FactorType
+    unit: str
 
     def __hash__(self):
         return hash(self.name)
+
+    def is_binary(self):
+        return self.type == FactorType.BINARY
+
+    def is_continuous(self):
+        return self.type == FactorType.CONTINUOUS
 
 
 @dataclass

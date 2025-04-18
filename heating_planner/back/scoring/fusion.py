@@ -23,7 +23,7 @@ class ScoringFusion(StreamlitReadyEnum):
             if factor not in scores.columns:
                 continue
             weighted_scores += coef * scores[factor].values
-            
+
         return weighted_scores
 
     @staticmethod

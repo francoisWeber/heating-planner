@@ -1,6 +1,7 @@
 import json
 import os
 from io import StringIO
+from typing import Dict
 
 import geopandas as gpd
 import pandas as pd
@@ -33,15 +34,27 @@ class DriasDataset(HazardDataset):
         scenario = cls.get_scenario_from_lines(raw_lines, sections_loc)
 
         factors_trends = DriasDataset.find_and_load_factors_types(path)
-        factors_definitions = cls.get_factors_definition_from_lines(raw_lines, sections_loc)
+        factors_descriptions = cls.get_factors_description_from_lines(raw_lines, sections_loc)
         factors = []
         for name in df.columns:
-            f_trend = factors_trends.get(name)
-            f_descr = factors_definitions.get(name)
-            if f_trend is None or f_descr is None:
+            logger.info(f"Processing {name=}")
+            trend = factors_trends.get(name)
+            if trend is None:
                 continue
-            f_trend = FactorTrend.from_string(f_trend)
-            factors.append(Factor(name=name, description=f_descr, trend=f_trend, type=FactorType.CONTINUOUS))
+            logger.info(f"Obtained {trend=}")
+            description = factors_descriptions.get(name)
+            if description is None:
+                continue
+            descr_parts = description.split("(")
+            description = descr_parts[0].strip()
+            unit = "".join(descr_parts[1:])[:-1] if len(descr_parts) > 1 else "no unit"
+            logger.info(f"Obtained {description=}")
+            logger.info(f"Obtained {unit=}")
+
+            if trend is None or description is None:
+                continue
+            trend = FactorTrend.from_string(trend)
+            factors.append(Factor(name=name, description=description, trend=trend, type=FactorType.CONTINUOUS, unit=unit))
 
         return cls(path=path, df=df, model=model, scenario=scenario, factors=factors)
 
@@ -87,7 +100,7 @@ class DriasDataset(HazardDataset):
         logger.warning("Scenario not found in DRIAS export file")
 
     @staticmethod
-    def get_factors_definition_from_lines(raw_lines: list[str], sections_loc) -> pd.DataFrame:
+    def get_factors_description_from_lines(raw_lines: list[str], sections_loc) -> Dict[str, str]:
         sec_id = DRIAS_EXPORT_SECTION_COLUMNS_DEF
         lines = raw_lines[sections_loc[sec_id] + 2 : sections_loc[sec_id + 1]]
         columns = {}
