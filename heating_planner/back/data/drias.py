@@ -1,14 +1,15 @@
-from typing import List
-from matplotlib import pyplot as plt
+import json
+import os
 import pandas as pd
 from loguru import logger
 from io import StringIO
-from heating_planner.back.data.base import HazardDataset
+from heating_planner.back.data.base import Factor, FactorType, HazardDataset, DatasetFactors
 
 
 import geopandas as gpd
 
 
+TREND_PREFERENCES_FNAME = "trend_preference_per_var.json"
 
 DRIAS_EXPORT_SECTION_MODEL = 1
 DRIAS_EXPORT_SECTION_SCENARIO = 1
@@ -21,7 +22,6 @@ def normalize_colname(colname: str) -> str:
 
 
 class DriasDataset(HazardDataset):
-
     @classmethod
     def load_from_path(cls, path):
         with open(path, "r") as f:
@@ -29,24 +29,40 @@ class DriasDataset(HazardDataset):
 
         sections_loc = cls.detect_sections_loc(raw_lines)
 
-
+        df = cls.get_df_from_lines(raw_lines, sections_loc)
         model = cls.get_model_from_lines(raw_lines, sections_loc)
         scenario = cls.get_scenario_from_lines(raw_lines, sections_loc)
+
+        factors_types = DriasDataset.find_and_load_factors_types(path)
         factors_definitions = cls.get_factors_definition_from_lines(raw_lines, sections_loc)
-        df = cls.get_df_from_lines(raw_lines, sections_loc)
-        factors_types = HazardDataset.find_and_load_factors_types(path)
-        
-        return cls(
-            path=path,
-            df=df,
-            factors_definitions=factors_definitions,
-            model=model,
-            scenario=scenario,
-            factors_types=factors_types
-        )
+        factors = []
+        for name in df.columns:
+            f_type = factors_types.get(name)
+            f_descr = factors_definitions.get(name)
+            if f_type is None or f_descr is None:
+                continue
+            f_type = FactorType.from_string(f_type)
+            factors.append(Factor(name=name, description=f_descr, type=f_type))
+
+        return cls(path=path, df=df, model=model, scenario=scenario, factors=DatasetFactors(factors))
 
     def __hash__(self):
         return hash(self.path)
+
+    @staticmethod
+    def find_and_load_factors_types(path):
+        if os.path.isdir(path):
+            json_path = os.path.join(path, TREND_PREFERENCES_FNAME)
+        elif os.path.isfile(path):
+            json_path = os.path.join(os.path.dirname(path), TREND_PREFERENCES_FNAME)
+        else:
+            raise FileNotFoundError(f"Path {path} does not exist")
+
+        if not os.path.exists(json_path):
+            raise FileNotFoundError(f"Trend preferences file not found at {json_path}")
+
+        with open(json_path, "r") as file:
+            return json.load(file)
 
     @staticmethod
     def detect_sections_loc(raw_lines: list[str]) -> dict[int, int]:

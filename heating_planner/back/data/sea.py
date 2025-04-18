@@ -1,22 +1,24 @@
 import geopandas as gpd
-from heating_planner.back.data.base import FactorType, HazardDataset
+from heating_planner.back.data.base import DatasetFactors, FactorType, HazardDataset, Factor
 
-COLUMN_DEFINITION = {"overflood": "Zones touchées par la montée des eaux (1m d'élévation)"}
+FACTOR_NAME = "overflood"
+FACTOR_DESCR = "Zones touchées par la montée des eaux (1m d'élévation)"
 MODEL = "sealevelrise.brgm.fr"
 SCENARIO = "1m elevation"
 
+
 class SeaElevationDataset(HazardDataset):
-    """Dataset loader for sea elevation data.
-    """
-    def __init__(self, path: str, df: HazardDataset | None = None):
-        trend_preferences = {"overflood": FactorType.BINARY}
-        super().__init__(path=path, df=df, factors_definitions=COLUMN_DEFINITION, model=MODEL, scenario=SCENARIO, is_boolean=True, factors_types=trend_preferences)
-        
+    """Dataset loader for sea elevation data."""
+
     @classmethod
     def load_from_path(cls, path: str):
         df = gpd.read_file(path)
         df = df.to_crs(epsg=4326)
+
         return cls(
             path=path,
             df=df,
+            model=MODEL,
+            scenario=SCENARIO,
+            factors=DatasetFactors([Factor(name=FACTOR_NAME, description=FACTOR_DESCR, type=FactorType.BINARY)]),
         )
