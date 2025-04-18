@@ -33,16 +33,18 @@ def display():
         hazard_dataset: HazardDataset = st.session_state.dataset_proj
         cols = st.columns(2)
         with cols[0]:
-            factor_scoring = st.selectbox("a", [1, 2])
-        scoring = 1
-        cols = st.columns([2, 1, 1])
-        coefs = {key: 1 for key in RESTRICT_TO_KEYS}
-        for i, key in enumerate(coefs.keys()):
-            with cols[1 + i % 2]:
-                var_definition = hazard_dataset.factors_definitions[key]
-                var_trend = VAR_TREND_2_EMOJI[hazard_dataset.factors_types[key]]
-                coefs[key] = st.slider(f"coeff {var_definition[:50]} ({var_trend})", 0, 3, step=1, value=1)
-        with cols[0]:
-            fig, ax = plt.subplots()
-            scoring.compute_rrf_score(coefs).plot("score", ax=ax, legend=True, cmap="RdYlGn")
-            st.pyplot(fig)
+            st.selectbox("scoring method", FactorwiseScoring.get_available_scorings(), index=0, key="scoring_method")
+        with cols[1]:
+            st.selectbox("fusion method", ScoringFusion.get_available_fusions(), index=0, key="fusion_method")
+        # scoring = 1
+        # cols = st.columns([2, 1, 1])
+        # coefs = {key: 1 for key in RESTRICT_TO_KEYS}
+        # for i, key in enumerate(coefs.keys()):
+        #     with cols[1 + i % 2]:
+        #         var_definition = hazard_dataset.factors_definitions[key]
+        #         var_trend = VAR_TREND_2_EMOJI[hazard_dataset.factors_types[key]]
+        #         coefs[key] = st.slider(f"coeff {var_definition[:50]} ({var_trend})", 0, 3, step=1, value=1)
+        # with cols[0]:
+        #     fig, ax = plt.subplots()
+        #     scoring.compute_rrf_score(coefs).plot("score", ax=ax, legend=True, cmap="RdYlGn")
+        #     st.pyplot(fig)

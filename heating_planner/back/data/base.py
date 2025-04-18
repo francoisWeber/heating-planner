@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import List
+from typing import Dict, List
 
 import geopandas as gpd
 import pandas as pd
@@ -40,7 +40,6 @@ class Factor:
         return hash(self.name)
 
 
-
 @dataclass
 class HazardDataset:
     path: str | None = None
@@ -48,6 +47,14 @@ class HazardDataset:
     model: str | None = None
     scenario: str | None = None
     factors: List[Factor] | None = None
+
+    _name2factors: Dict[str, Factor] | None = None
+
+    def __post_init__(self):
+        self._name2factors = {f.name: f for f in self.factors} if self.factors else {}
+
+    def get_factor(self, name: str) -> Factor:
+        return self._name2factors.get(name)
 
     @classmethod
     def load_from_path(cls, path: str):

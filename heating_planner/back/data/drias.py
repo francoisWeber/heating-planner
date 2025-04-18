@@ -6,9 +6,7 @@ import geopandas as gpd
 import pandas as pd
 from loguru import logger
 
-from heating_planner.back.data.base import (Factor,
-                                            FactorTrend, FactorType,
-                                            HazardDataset)
+from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset
 
 TREND_PREFERENCES_FNAME = "trend_preference_per_var.json"
 

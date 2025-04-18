@@ -2,6 +2,7 @@ import json
 
 import streamlit as st
 
+from heating_planner.back.data.base import HazardDataset
 from heating_planner.front.cst import VAR_TREND_2_EMOJI
 from heating_planner.front.histogram import InteractiveHistogram
 
@@ -16,11 +17,11 @@ def display():
         st.warning("Please load the files first")
         st.stop()
     else:
-        dataset_proj = st.session_state.dataset_proj
-        dataset_ref = st.session_state.dataset_ref
+        dataset_proj: HazardDataset = st.session_state.dataset_proj
+        dataset_ref: HazardDataset = st.session_state.dataset_ref
 
-        ref_keys = set(dataset_ref.factors_definitions.keys())
-        proj_keys = set(dataset_proj.factors_definitions.keys())
+        ref_keys = set([factor.name for factor in dataset_ref.factors])
+        proj_keys = set([factor.name for factor in dataset_proj.factors])
         common_keys = sorted(list(ref_keys.intersection(proj_keys)))
 
         with st.sidebar:
@@ -61,11 +62,10 @@ def display():
         NCOL = 3
         cols = st.columns(NCOL)
         for i, key in enumerate(common_keys):
+            factor = dataset_proj.get_factor(key)
             with cols[i % NCOL]:
                 st.subheader(key)
-                var_definition = dataset_proj.factors_definitions[key]
-                var_trend = VAR_TREND_2_EMOJI[dataset_proj.factors_types[key]]
-                st.write(var_definition + " " + var_trend)
+                st.write(factor.description + " " + factor.trend.value)
                 hist_name = f"chart-{key}"
                 if hist_name not in st.session_state:
                     st.session_state[hist_name] = InteractiveHistogram(dataset_ref.df[key], key, ref_values[key])

@@ -61,7 +61,7 @@ def test_neutral_score():
 
 
 def test_factorwise_scoring_by_type(df, factors):
-    scores = FactorwiseScoring._by_factor_type(df, factors)
+    scores = FactorwiseScoring._by_trend(df, factors)
     expected = pd.DataFrame(
         {
             "f1": [-1, -2, -3, -4],
@@ -73,7 +73,7 @@ def test_factorwise_scoring_by_type(df, factors):
 
 
 def test_factorwise_scoring_by_factor_optimal_range_discrepancy(df, factors, optimal_ranges):
-    scores = FactorwiseScoring._by_factor_optimal_range_discrepancy(df, factors, optimal_ranges)
+    scores = FactorwiseScoring._by_optimal_range_discrepancy(df, factors, optimal_ranges)
     expected = pd.DataFrame(
         {
             "f1": [0.1, 0, 0, 1],
@@ -97,7 +97,7 @@ def test_factorwise_scoring_by_factor_reference_values(df, factors):
         dtype=float,
     )
     df_proj = gpd.GeoDataFrame(df, geometry=geometry)
-    scores = FactorwiseScoring._by_factor_reference_values(df_ref, df_proj, factors)
+    scores = FactorwiseScoring._by_historical_value(df_ref, df_proj, factors)
     expected = pd.DataFrame(
         {
             "f1": [-1 * (1 - 2) / 2, -1 * (2 - 1) / 1, -1 * (3 - 3) / 3, -1 * (4 - 8) / 8],

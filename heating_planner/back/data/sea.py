@@ -1,8 +1,6 @@
 import geopandas as gpd
 
-from heating_planner.back.data.base import (Factor,
-                                            FactorTrend, FactorType,
-                                            HazardDataset)
+from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset
 
 FACTOR_NAME = "overflood"
 FACTOR_DESCR = "Zones touchées par la montée des eaux (1m d'élévation)"

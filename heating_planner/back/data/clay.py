@@ -1,8 +1,6 @@
 import geopandas as gpd
 
-from heating_planner.back.data.base import (Factor,
-                                            FactorTrend, FactorType,
-                                            HazardDataset)
+from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset
 
 FACTOR_NAME = "clay_hazard"
 FACTOR_DEF = "Niveau de risque de retrait-gonflement des argiles (3 niveaux)"

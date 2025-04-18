@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Dict
+from typing import Dict, List
 
 import geopandas as gpd
 import numpy as np
@@ -14,6 +14,10 @@ class ScoringFusion(StrEnum):
             return ScoringFusion.weighted_mean(scores, coefs)
         if self is ScoringFusion.RRF:
             return ScoringFusion.reciprocal_rank_fusion(scores, coefs)
+
+    @classmethod
+    def get_available_fusions(cls) -> List[str]:
+        return [fusion.value for fusion in cls]
 
     @staticmethod
     def weighted_mean(scores: gpd.GeoDataFrame, coefs: Dict[str, float]) -> gpd.GeoDataFrame:
