@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
-from heating_planner.back.data.base import Factor, FactorTrend, HazardDataset
+from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset
 
 SCORE_COL = "score"
 GOOD_SIDE_COEF = 0.1
@@ -44,17 +44,24 @@ class FactorwiseScoring(StrEnum):
         self, dataset: HazardDataset, dataset_historical: HazardDataset, optimal_ranges: Dict[str, List[float]], scaled: bool = True
     ) -> gpd.GeoDataFrame:
         if self is FactorwiseScoring.BY_FACTOR_TREND:
-            return FactorwiseScoring.by_trend(dataset, scaled)
-        if self is FactorwiseScoring.BY_HISTORICAL_VALUES:
-            return FactorwiseScoring.by_historical_value(dataset_historical, dataset, scaled)
-        if self is FactorwiseScoring.BY_OPTIMAL_RANGE:
-            return FactorwiseScoring.by_optimal_range_discrepancy(dataset, optimal_ranges, scaled)
-        if self is FactorwiseScoring.BY_REFERENCE_VALUE:
+            scores = FactorwiseScoring._by_trend(dataset.df, dataset.factors)
+        elif self is FactorwiseScoring.BY_HISTORICAL_VALUES:
+            scores = FactorwiseScoring._by_historical_value(dataset_historical.df, dataset.df, dataset.factors)
+        elif self is FactorwiseScoring.BY_OPTIMAL_RANGE:
+            scores = FactorwiseScoring._by_optimal_range_discrepancy(dataset.df, dataset.factors, optimal_ranges)
+        elif self is FactorwiseScoring.BY_REFERENCE_VALUE:
             raise NotImplementedError("single point ref scoring not implemented yet")
+        else:
+            raise ValueError()
+
+        scores = FactorwiseScoring.scale(scores, scaled)
+        scores = gpd.GeoDataFrame(pd.concat([dataset.df[["geometry"]], scores], axis=1))
+
+        return scores
 
     @classmethod
-    def get_available_scorings(cls) -> List[str]:
-        return [scoring.value for scoring in cls]
+    def get_available_scorings(cls) -> List["FactorwiseScoring"]:
+        return [scoring for scoring in cls]
 
     @staticmethod
     def scale(df: pd.DataFrame, scaled: bool) -> pd.DataFrame:
@@ -64,30 +71,16 @@ class FactorwiseScoring(StrEnum):
         return df
 
     @staticmethod
-    def by_trend(dataset: HazardDataset, scaled: bool = True) -> gpd.GeoDataFrame:
-        scores = FactorwiseScoring._by_trend(dataset.df, dataset.factors)
-        scores = FactorwiseScoring.scale(scores, scaled)
-        scores = gpd.GeoDataFrame(pd.concat([dataset.df[["geometry"]], scores], axis=1))
-        return scores
-
-    @staticmethod
     def _by_trend(df: pd.DataFrame, factors: List[Factor]) -> pd.DataFrame:
         """Each factor's score is its own value (or the inverse if higher is better)"""
         scores = pd.DataFrame()
         for factor in factors:
+            if factor.type == FactorType.BINARY:
+                continue
             if factor.trend == FactorTrend.LOWER_BETTER:
                 scores[factor.name] = -1.0 * df[factor.name]
             if factor.trend == FactorTrend.HIGHER_BETTER:
                 scores[factor.name] = 1.0 * df[factor.name]
-        return scores
-
-    @staticmethod
-    def by_optimal_range_discrepancy(
-        dataset: HazardDataset, optimal_ranges: Dict[str, List[float]], scaled: bool = True
-    ) -> gpd.GeoDataFrame:
-        scores = FactorwiseScoring._by_optimal_range_discrepancy(dataset.df, dataset.factors, optimal_ranges)
-        scores = FactorwiseScoring.scale(scores, scaled)
-        scores = gpd.GeoDataFrame(pd.concat([dataset.df[["geometry"]], scores], axis=1))
         return scores
 
     @staticmethod
@@ -107,18 +100,11 @@ class FactorwiseScoring(StrEnum):
         return scores
 
     @staticmethod
-    def by_historical_value(dataset_hist: HazardDataset, dataset_proj: HazardDataset, scaled: bool = True) -> gpd.GeoDataFrame:
-        scores = FactorwiseScoring._by_historical_value(dataset_hist.df, dataset_proj.df, dataset_proj.factors)
-        scores = FactorwiseScoring.scale(scores, scaled)
-        scores = gpd.GeoDataFrame(pd.concat([dataset_hist.df[["geometry"]], scores], axis=1))
-        return scores
-
-    @staticmethod
-    def _by_historical_value(df_ref: gpd.GeoDataFrame, df_proj: gpd.GeoDataFrame, factors: List[Factor]) -> pd.DataFrame:
+    def _by_historical_value(df_hist: gpd.GeoDataFrame, df_proj: gpd.GeoDataFrame, factors: List[Factor]) -> pd.DataFrame:
         SUFFIX_REF = "L"
         SUFFIX_PROJ = "R"
-        common_factors = sorted(list(set(df_ref.columns).intersection(set(df_proj.columns))))
-        df = gpd.sjoin_nearest(df_ref[common_factors], df_proj[common_factors], lsuffix=SUFFIX_REF, rsuffix=SUFFIX_PROJ)
+        common_factors = sorted(list(set(df_hist.columns).intersection(set(df_proj.columns))))
+        df = gpd.sjoin_nearest(df_hist[common_factors], df_proj[common_factors], lsuffix=SUFFIX_REF, rsuffix=SUFFIX_PROJ)
         name2factor = {factor.name: factor for factor in factors}
 
         scores = pd.DataFrame()

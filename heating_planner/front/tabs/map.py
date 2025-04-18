@@ -30,21 +30,30 @@ def display():
         st.warning("Please load the files first")
         st.button("retry")
     else:
-        hazard_dataset: HazardDataset = st.session_state.dataset_proj
-        cols = st.columns(2)
+        dataset_proj: HazardDataset = st.session_state.dataset_proj
+        dataset_hist: HazardDataset = st.session_state.dataset_ref
+
+        cols = st.columns(3)
         with cols[0]:
-            st.selectbox("scoring method", FactorwiseScoring.get_available_scorings(), index=0, key="scoring_method")
+            scoring_strategy = st.radio("scoring method", FactorwiseScoring.get_available_scorings(), index=0, key="scoring_method")
         with cols[1]:
-            st.selectbox("fusion method", ScoringFusion.get_available_fusions(), index=0, key="fusion_method")
-        # scoring = 1
-        # cols = st.columns([2, 1, 1])
-        # coefs = {key: 1 for key in RESTRICT_TO_KEYS}
-        # for i, key in enumerate(coefs.keys()):
-        #     with cols[1 + i % 2]:
-        #         var_definition = hazard_dataset.factors_definitions[key]
-        #         var_trend = VAR_TREND_2_EMOJI[hazard_dataset.factors_types[key]]
-        #         coefs[key] = st.slider(f"coeff {var_definition[:50]} ({var_trend})", 0, 3, step=1, value=1)
-        # with cols[0]:
-        #     fig, ax = plt.subplots()
-        #     scoring.compute_rrf_score(coefs).plot("score", ax=ax, legend=True, cmap="RdYlGn")
-        #     st.pyplot(fig)
+            fusion_strategy = st.radio("fusion method", ScoringFusion.get_available_fusions(), index=0, key="fusion_method")
+        with cols[2]:
+            scaling = st.radio("scale scores", [True, False], key="scaling")
+
+        cols = st.columns([2, 1, 1])
+        coefs = {key: 1 for key in RESTRICT_TO_KEYS}
+        for i, key in enumerate(coefs.keys()):
+            factor = dataset_proj.get_factor(key)
+            with cols[1 + i % 2]:
+                var_trend = VAR_TREND_2_EMOJI[factor.trend.value]
+                coefs[key] = st.slider(f"coeff {factor.description[:50]} ({var_trend})", 0, 3, step=1, value=1)
+
+        with st.spinner("Computing score ..."):
+            scores = scoring_strategy(dataset_proj, dataset_hist, st.session_state.reference_ranges, scaled=scaling)
+            score = fusion_strategy(scores, coefs)
+        with cols[0]:
+            with st.spinner("Creating map ..."):
+                fig, ax = plt.subplots()
+                score.plot("score", ax=ax, legend=True, cmap="RdYlGn")
+                st.pyplot(fig)

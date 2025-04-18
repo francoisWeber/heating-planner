@@ -3,6 +3,7 @@ from typing import Dict, List
 
 import geopandas as gpd
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler
 
 
 class ScoringFusion(StrEnum):
@@ -11,31 +12,37 @@ class ScoringFusion(StrEnum):
 
     def __call__(self, scores: gpd.GeoDataFrame, coefs: Dict[str, float]) -> gpd.GeoDataFrame:
         if self is ScoringFusion.WEIGHTED_MEAN:
-            return ScoringFusion.weighted_mean(scores, coefs)
-        if self is ScoringFusion.RRF:
-            return ScoringFusion.reciprocal_rank_fusion(scores, coefs)
+            score = ScoringFusion.weighted_mean(scores, coefs)
+        elif self is ScoringFusion.RRF:
+            score = ScoringFusion.reciprocal_rank_fusion(scores, coefs)
+        else:
+            raise ValueError()
+        
+        score = MinMaxScaler().fit_transform(score.reshape(-1, 1))
+        geo_score = scores[["geometry"]].copy()
+        geo_score["score"] = score.squeeze()
+        return geo_score
 
     @classmethod
-    def get_available_fusions(cls) -> List[str]:
-        return [fusion.value for fusion in cls]
+    def get_available_fusions(cls) -> List["ScoringFusion"]:
+        return [fusion for fusion in cls]
 
     @staticmethod
     def weighted_mean(scores: gpd.GeoDataFrame, coefs: Dict[str, float]) -> gpd.GeoDataFrame:
-        weighted_scores = []
+        weighted_scores = np.zeros_like(scores.iloc[:, 0])
         for factor, coef in coefs.items():
             if factor not in scores.columns:
                 continue
-            weighted_scores.append(coef * scores[factor].values)
-        geo_score = scores[["geometry"]].copy()
-        geo_score["score"] = np.sum(weighted_scores, axis=1)
+            weighted_scores += coef * scores[factor].values
+            
+        return weighted_scores
 
     @staticmethod
     def reciprocal_rank_fusion(scores: gpd.GeoDataFrame, coefs: Dict[str, float]) -> gpd.GeoDataFrame:
-        weighted_scores = []
+        weighted_scores = np.zeros_like(scores.iloc[:, 0])
         for factor, coef in coefs.items():
             if factor not in scores.columns:
                 continue
-            weighted_scores.append(coef / scores[factor].rank(method="min").values)
+            weighted_scores += coef / scores[factor].rank(method="min").values
 
-        geo_score = scores[["geometry"]].copy()
-        geo_score["score"] = np.sum(weighted_scores, axis=1)
+        return weighted_scores
