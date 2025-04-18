@@ -7,6 +7,7 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset
+from heating_planner.back.streamlit_enums import StreamlitReadyEnum
 
 SCORE_COL = "score"
 GOOD_SIDE_COEF = 0.1
@@ -34,7 +35,7 @@ def neutral_score(x: np.ndarray, lower_bound: float, upper_bound: float) -> np.n
     return score
 
 
-class FactorwiseScoring(StrEnum):
+class FactorwiseScoring(StreamlitReadyEnum):
     BY_FACTOR_TREND = "by factor trend"
     BY_OPTIMAL_RANGE = "by comparison wrt optimal range"
     BY_HISTORICAL_VALUES = "by comparison wrt historical values"
@@ -58,10 +59,6 @@ class FactorwiseScoring(StrEnum):
         scores = gpd.GeoDataFrame(pd.concat([dataset.df[["geometry"]], scores], axis=1))
 
         return scores
-
-    @classmethod
-    def get_available_scorings(cls) -> List["FactorwiseScoring"]:
-        return [scoring for scoring in cls]
 
     @staticmethod
     def scale(df: pd.DataFrame, scaled: bool) -> pd.DataFrame:
