@@ -52,9 +52,9 @@ class FactorwiseScoring:
         """Each factor's score is its own value (or the inverse if higher is better)"""
         scores = pd.DataFrame()
         for factor in factors:
-            if factor.type == FactorType.LOWER_BETTER:
+            if factor.trend == FactorTrend.LOWER_BETTER:
                 scores[factor.name] = -1.0 * df[factor.name]
-            if factor.type == FactorType.HIGHER_BETTER:
+            if factor.trend == FactorTrend.HIGHER_BETTER:
                 scores[factor.name] = 1.0 * df[factor.name]
         return scores
 
@@ -76,11 +76,11 @@ class FactorwiseScoring:
             if factor.name not in optimal_ranges:
                 continue
             low_up_bounds = optimal_ranges[factor.name]
-            if factor.type == FactorType.LOWER_BETTER:
+            if factor.trend == FactorTrend.LOWER_BETTER:
                 scores[factor.name] = lower_better_score(df[factor.name], *low_up_bounds)
-            if factor.type == FactorType.HIGHER_BETTER:
+            if factor.trend == FactorTrend.HIGHER_BETTER:
                 scores[factor.name] = higher_better_score(df[factor.name], *low_up_bounds)
-            if factor.type == FactorType.NEUTRAL:
+            if factor.trend == FactorTrend.NEUTRAL:
                 scores[factor.name] = neutral_score(df[factor.name], *low_up_bounds)
         return scores
 
@@ -106,11 +106,11 @@ class FactorwiseScoring:
             factor_ref = factor + "_" + SUFFIX_REF
             factor_proj = factor + "_" + SUFFIX_PROJ
             s = (df[factor_proj] - df[factor_ref]) / np.abs(df[factor_ref])
-            if factors[factor].type == FactorType.LOWER_BETTER:
+            if factors[factor].trend == FactorTrend.LOWER_BETTER:
                 scores[factor] = -1.0 * s
-            elif factors[factor].type == FactorType.HIGHER_BETTER:
+            elif factors[factor].trend == FactorTrend.HIGHER_BETTER:
                 scores[factor] = s
-            elif factors[factor].type == FactorType.NEUTRAL:
+            elif factors[factor].trend == FactorTrend.NEUTRAL:
                 scores[factor] = np.abs(s)
             
         return scores

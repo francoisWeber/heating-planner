@@ -1,8 +1,7 @@
-from heating_planner.back.data.base import FactorType
+from heating_planner.back.data.base import FactorTrend
 
 VAR_TREND_2_EMOJI = {
-    FactorType.LOWER_BETTER: "⬇️",
-    FactorType.HIGHER_BETTER: "⬆️",
-    FactorType.NEUTRAL: "⚪️",
-    FactorType.BINARY: "⚪️",
+    FactorTrend.LOWER_BETTER: "⬇️",
+    FactorTrend.HIGHER_BETTER: "⬆️",
+    FactorTrend.NEUTRAL: "⚪️",
 }

@@ -1,23 +1,23 @@
-from typing import List
-
-import pandas as pd
-from heating_planner.back.geo import geo_tool
-import geopandas as gpd
-from shapely.geometry import Point
 import json
 import os
-from enum import StrEnum
 from dataclasses import dataclass
+from enum import StrEnum
+from typing import List
+
+import geopandas as gpd
+import pandas as pd
+from shapely.geometry import Point
+
+from heating_planner.back.geo import geo_tool
 
 
-class FactorType(StrEnum):
+class FactorTrend(StrEnum):
     HIGHER_BETTER = "higher_better"
     LOWER_BETTER = "lower_better"
     NEUTRAL = "neutral"
-    BINARY = "binary"
 
     @classmethod
-    def from_string(cls, value: str) -> "FactorType":
+    def from_string(cls, value: str) -> "FactorTrend":
         """Convert string to FactorType enum value"""
         try:
             return cls(value.lower())
@@ -25,10 +25,17 @@ class FactorType(StrEnum):
             raise ValueError(f"Invalid FactorType: {value}. Must be one of {[t.value for t in cls]}")
 
 
+class FactorType(StrEnum):
+    CONTINUOUS = "continuous"
+    DISCRETE = "discrete"
+    BINARY = "binary"
+
+
 @dataclass
 class Factor:
     name: str
     description: str
+    trend: FactorTrend
     type: FactorType
 
     def __hash__(self):
@@ -57,7 +64,7 @@ class DatasetFactors:
 
 @dataclass
 class HazardDataset:
-    path: str  | None = None
+    path: str | None = None
     df: gpd.GeoDataFrame | None = None
     model: str | None = None
     scenario: str | None = None

@@ -1,13 +1,14 @@
 import json
 import os
-import pandas as pd
-from loguru import logger
 from io import StringIO
-from heating_planner.back.data.base import Factor, FactorType, HazardDataset, DatasetFactors
-
 
 import geopandas as gpd
+import pandas as pd
+from loguru import logger
 
+from heating_planner.back.data.base import (DatasetFactors, Factor,
+                                            FactorTrend, FactorType,
+                                            HazardDataset)
 
 TREND_PREFERENCES_FNAME = "trend_preference_per_var.json"
 
@@ -33,16 +34,16 @@ class DriasDataset(HazardDataset):
         model = cls.get_model_from_lines(raw_lines, sections_loc)
         scenario = cls.get_scenario_from_lines(raw_lines, sections_loc)
 
-        factors_types = DriasDataset.find_and_load_factors_types(path)
+        factors_trends = DriasDataset.find_and_load_factors_types(path)
         factors_definitions = cls.get_factors_definition_from_lines(raw_lines, sections_loc)
         factors = []
         for name in df.columns:
-            f_type = factors_types.get(name)
+            f_trend = factors_trends.get(name)
             f_descr = factors_definitions.get(name)
-            if f_type is None or f_descr is None:
+            if f_trend is None or f_descr is None:
                 continue
-            f_type = FactorType.from_string(f_type)
-            factors.append(Factor(name=name, description=f_descr, type=f_type))
+            f_trend = FactorTrend.from_string(f_trend)
+            factors.append(Factor(name=name, description=f_descr, trend=f_trend, type=FactorType.CONTINUOUS))
 
         return cls(path=path, df=df, model=model, scenario=scenario, factors=DatasetFactors(factors))
 

@@ -2,7 +2,7 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 from heating_planner.back.scoring.factorwise_scoring import lower_better_score, higher_better_score, neutral_score, FactorwiseScoring
-from heating_planner.back.data.base import Factor, FactorType, DatasetFactors
+from heating_planner.back.data.base import Factor, FactorTrend, DatasetFactors
 import pytest
 from shapely.geometry import Point
 
@@ -23,9 +23,9 @@ def df():
 def factors():
     return DatasetFactors(
         [
-            Factor(name="f1", description="Factor 1", type=FactorType.LOWER_BETTER),
-            Factor(name="f2", description="Factor 2", type=FactorType.HIGHER_BETTER),
-            Factor(name="f3", description="Factor 3", type=FactorType.NEUTRAL),
+            Factor(name="f1", description="Factor 1", trend=FactorTrend.LOWER_BETTER),
+            Factor(name="f2", description="Factor 2", trend=FactorTrend.HIGHER_BETTER),
+            Factor(name="f3", description="Factor 3", trend=FactorTrend.NEUTRAL),
         ]
     )
 

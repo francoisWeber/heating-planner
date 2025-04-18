@@ -1,10 +1,13 @@
 import geopandas as gpd
 
-from heating_planner.back.data.base import DatasetFactors, FactorType, HazardDataset, Factor
+from heating_planner.back.data.base import (DatasetFactors, Factor,
+                                            FactorTrend, FactorType,
+                                            HazardDataset)
 
 FACTOR_NAME = "clay_hazard"
 FACTOR_DEF = "Niveau de risque de retrait-gonflement des argiles (3 niveaux)"
-FACTOR_TYPE = FactorType.LOWER_BETTER
+FACTOR_TREND = FactorTrend.LOWER_BETTER
+FACTOR_TYPE = FactorType.DISCRETE
 
 MODEL = "georisques"
 SCENARIO = "historique"
@@ -22,7 +25,7 @@ class ClayHazardDataset(HazardDataset):
         df = df.drop(columns=["DPT", "ALEA"]).rename(columns={"NIVEAU": VAR_NAME})
         df = df.to_crs(epsg=4326)  # Convert to WGS84
 
-        factors = DatasetFactors([Factor(name=VAR_NAME, description=FACTOR_DEF, type=FACTOR_TYPE)])
+        factors = DatasetFactors([Factor(name=VAR_NAME, description=FACTOR_DEF, trend=FACTOR_TREND, type=FACTOR_TYPE)])
 
         return cls(
             path=path,
