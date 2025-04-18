@@ -6,7 +6,7 @@ import geopandas as gpd
 import pandas as pd
 from loguru import logger
 
-from heating_planner.back.data.base import (DatasetFactors, Factor,
+from heating_planner.back.data.base import (Factor,
                                             FactorTrend, FactorType,
                                             HazardDataset)
 
@@ -45,7 +45,7 @@ class DriasDataset(HazardDataset):
             f_trend = FactorTrend.from_string(f_trend)
             factors.append(Factor(name=name, description=f_descr, trend=f_trend, type=FactorType.CONTINUOUS))
 
-        return cls(path=path, df=df, model=model, scenario=scenario, factors=DatasetFactors(factors))
+        return cls(path=path, df=df, model=model, scenario=scenario, factors=factors)
 
     def __hash__(self):
         return hash(self.path)

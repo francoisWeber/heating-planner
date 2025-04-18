@@ -1,5 +1,3 @@
-import json
-import os
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import List
@@ -42,25 +40,6 @@ class Factor:
         return hash(self.name)
 
 
-class DatasetFactors:
-    def __init__(self, factors: List[Factor]):
-        self.factors = factors
-        self.factors_dict = {factor.name: factor for factor in factors}
-
-    def __getitem__(self, key: str) -> Factor:
-        return self.factors_dict[key]
-
-    def __iter__(self):
-        return iter(self.factors)
-
-    def __len__(self):
-        return len(self.factors)
-
-    def __add__(self, other: "DatasetFactors"):
-        if not isinstance(other, DatasetFactors):
-            raise TypeError("Can only add two DatasetFactors objects")
-        return DatasetFactors(self.factors + other.factors)
-
 
 @dataclass
 class HazardDataset:
@@ -68,7 +47,7 @@ class HazardDataset:
     df: gpd.GeoDataFrame | None = None
     model: str | None = None
     scenario: str | None = None
-    factors: DatasetFactors | None = None
+    factors: List[Factor] | None = None
 
     @classmethod
     def load_from_path(cls, path: str):

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
-from heating_planner.back.data.base import (DatasetFactors, FactorTrend,
+from heating_planner.back.data.base import (Factor, FactorTrend,
                                             HazardDataset)
 
 SCORE_COL = "score"
@@ -51,7 +51,7 @@ class FactorwiseScoring(StrEnum):
         return scores
 
     @staticmethod
-    def _by_factor_type(df: pd.DataFrame, factors: DatasetFactors) -> pd.DataFrame:
+    def _by_factor_type(df: pd.DataFrame, factors: List[Factor]) -> pd.DataFrame:
         """Each factor's score is its own value (or the inverse if higher is better)"""
         scores = pd.DataFrame()
         for factor in factors:
@@ -72,7 +72,7 @@ class FactorwiseScoring(StrEnum):
 
     @staticmethod
     def _by_factor_optimal_range_discrepancy(
-        df: pd.DataFrame, factors: DatasetFactors, optimal_ranges: Dict[str, List[float]]
+        df: pd.DataFrame, factors: List[Factor], optimal_ranges: Dict[str, List[float]]
     ) -> pd.DataFrame:
         """Compare each factor to its optimal range and measure its discrepancy according to the factor's type"""
         scores = pd.DataFrame()
@@ -96,24 +96,25 @@ class FactorwiseScoring(StrEnum):
         return scores
 
     @staticmethod
-    def _by_factor_reference_values(df_ref: gpd.GeoDataFrame, df_proj: gpd.GeoDataFrame, factors: DatasetFactors) -> pd.DataFrame:
+    def _by_factor_reference_values(df_ref: gpd.GeoDataFrame, df_proj: gpd.GeoDataFrame, factors: List[Factor]) -> pd.DataFrame:
         SUFFIX_REF = "L"
         SUFFIX_PROJ = "R"
         common_factors = sorted(list(set(df_ref.columns).intersection(set(df_proj.columns))))
         df = gpd.sjoin_nearest(df_ref[common_factors], df_proj[common_factors], lsuffix=SUFFIX_REF, rsuffix=SUFFIX_PROJ)
+        name2factor = {factor.name: factor for factor in factors}
 
         scores = pd.DataFrame()
-        for factor in common_factors:
-            if factor == "geometry":
+        for factor_name in common_factors:
+            if factor_name == "geometry":
                 continue
-            factor_ref = factor + "_" + SUFFIX_REF
-            factor_proj = factor + "_" + SUFFIX_PROJ
+            factor_ref = factor_name + "_" + SUFFIX_REF
+            factor_proj = factor_name + "_" + SUFFIX_PROJ
             s = (df[factor_proj] - df[factor_ref]) / np.abs(df[factor_ref])
-            if factors[factor].trend == FactorTrend.LOWER_BETTER:
-                scores[factor] = -1.0 * s
-            elif factors[factor].trend == FactorTrend.HIGHER_BETTER:
-                scores[factor] = s
-            elif factors[factor].trend == FactorTrend.NEUTRAL:
-                scores[factor] = np.abs(s)
+            if name2factor[factor_name].trend == FactorTrend.LOWER_BETTER:
+                scores[factor_name] = -1.0 * s
+            elif name2factor[factor_name].trend == FactorTrend.HIGHER_BETTER:
+                scores[factor_name] = s
+            elif name2factor[factor_name].trend == FactorTrend.NEUTRAL:
+                scores[factor_name] = np.abs(s)
 
         return scores
