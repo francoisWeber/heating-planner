@@ -1,6 +1,7 @@
 import streamlit as st
 
-from heating_planner.front.loading import load_drias_dataset
+from heating_planner.front.loading import load_and_cache_dataset
+from heating_planner.back.data import ClayHazardDataset, DriasDataset, SeaElevationDataset
 
 PARAMS_INIT = {
     "loaded": False,
@@ -20,7 +21,12 @@ def display():
     input_file_proj = st.text_input("Projection file", drias_proj_path)
 
     if input_file_proj and input_file_ref:
-        st.session_state["dataset_proj"] = load_drias_dataset(input_file_proj)
-        st.session_state["dataset_ref"] = load_drias_dataset(input_file_ref)
+        drias_ref = load_and_cache_dataset(drias_ref_path, DriasDataset)
+        drias_proj = load_and_cache_dataset(drias_proj_path, DriasDataset)
+        clay_ref = load_and_cache_dataset(clay_path, ClayHazardDataset)
+        sea_proj = load_and_cache_dataset(sea_elevation_path, SeaElevationDataset)
+
+        st.session_state["dataset_proj"] = drias_proj + clay_ref + sea_proj
+        st.session_state["dataset_ref"] = drias_ref + clay_ref + sea_proj
         st.session_state["loaded"] = True
         st.markdown(":heavy_check_mark: Files loaded")

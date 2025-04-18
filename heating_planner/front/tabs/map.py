@@ -24,8 +24,6 @@ RESTRICT_TO_KEYS = [
 ]
 
 
-
-
 def display():
     if not st.session_state.loaded:
         st.warning("Please load the files first")
@@ -44,19 +42,33 @@ def display():
                 scaling = st.toggle("scale scores", value=True, key="scaling")
                 contrast = st.radio("contrast management", options=Contrast.get_available_options(), index=1)
 
-        cols = st.columns([2, 1, 1])
-        coefs = {key: 1 for key in RESTRICT_TO_KEYS}
-        for i, key in enumerate(coefs.keys()):
-            factor = dataset_proj.get_factor(key)
-            with cols[1 + i % 2]:
-                var_trend = VAR_TREND_2_EMOJI[factor.trend.value]
-                coefs[key] = st.slider(f"coeff {factor.description[:50]} ({var_trend})", 0, 3, step=1, value=1)
+        with st.container(border=True):
+            cols = st.columns([2, 1, 1])
 
-        scores = scoring_strategy(dataset_proj, dataset_hist, st.session_state.reference_ranges, scaled=scaling)
-        score = fusion_strategy(scores, coefs)
-        map = process_score(dataset_proj, score, contrast=contrast)
-        with cols[0]:
-            with st.spinner("Creating map ..."):
-                fig, ax = plt.subplots()
-                map.plot("score", ax=ax, legend=True, cmap="RdYlGn")
-                st.pyplot(fig)
+            # display boolean keys
+            binary_factor_infos = {}
+            n_binary = 0
+            for factor in dataset_proj.factors:
+                if not factor.is_binary():
+                    continue
+                with cols[1 + n_binary % 2]:
+                    binary_factor_infos[factor.name] = st.toggle("With: " + factor.description)
+                n_binary += 1
+
+            # display continuous keys
+            coefs = {key: 1 for key in RESTRICT_TO_KEYS}
+            for i, key in enumerate(coefs.keys()):
+                factor = dataset_proj.get_factor(key)
+                with cols[1 + i % 2]:
+                    var_trend = VAR_TREND_2_EMOJI[factor.trend.value]
+                    coefs[key] = st.slider(f"coeff {factor.description[:50]} ({var_trend})", 0, 3, step=1, value=1)
+
+            with st.spinner("Computing score ..."):
+                scores = scoring_strategy(dataset_proj, dataset_hist, st.session_state.reference_ranges, scaled=scaling)
+                score = fusion_strategy(scores, coefs)
+                hazard_map = process_score(dataset_proj, score, contrast=contrast, binary_factor_infos=binary_factor_infos)
+            with cols[0]:
+                with st.spinner("Creating map ..."):
+                    fig, ax = plt.subplots()
+                    hazard_map.plot("score", ax=ax, legend=True, cmap="RdYlGn")
+                    st.pyplot(fig)

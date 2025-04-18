@@ -63,9 +63,11 @@ def display():
         cols = st.columns(NCOL)
         for i, key in enumerate(common_keys):
             factor = dataset_proj.get_factor(key)
+            if not factor.is_continuous():
+                continue
             with cols[i % NCOL]:
                 st.subheader(key)
-                st.write(factor.description + " " + factor.trend.value)
+                st.write(f"{factor.description[:55]}\n{factor.unit}, {factor.trend.value}")
                 hist_name = f"chart-{key}"
                 if hist_name not in st.session_state:
                     st.session_state[hist_name] = InteractiveHistogram(dataset_ref.df[key], key, ref_values[key])
