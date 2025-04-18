@@ -1,7 +1,8 @@
-from typing import Dict
-import pandas as pd
-import altair as alt
 import math as m
+from typing import Dict
+
+import altair as alt
+import pandas as pd
 
 
 class InteractiveHistogram:

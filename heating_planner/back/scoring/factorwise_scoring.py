@@ -1,10 +1,13 @@
+from enum import StrEnum
 from typing import Dict, List
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
-from heating_planner.back.data.base import DatasetFactors, HazardDataset, FactorType
+from heating_planner.back.data.base import (DatasetFactors, FactorTrend,
+                                            HazardDataset)
 
 SCORE_COL = "score"
 GOOD_SIDE_COEF = 0.1
@@ -32,21 +35,21 @@ def neutral_score(x: np.ndarray, lower_bound: float, upper_bound: float) -> np.n
     return score
 
 
-class FactorwiseScoring:
+class FactorwiseScoring(StrEnum):
     @staticmethod
     def scale(df: pd.DataFrame, scaled: bool) -> pd.DataFrame:
         if scaled:
             scaler = MinMaxScaler()
             df = pd.DataFrame(scaler.fit_transform(df), columns=df.columns, index=df.index)
         return df
-    
+
     @staticmethod
     def by_factor_type(dataset: HazardDataset, scaled: bool = True) -> gpd.GeoDataFrame:
         scores = FactorwiseScoring._by_factor_type(dataset.df, dataset.factors)
         scores = FactorwiseScoring.scale(scores, scaled)
         scores = gpd.GeoDataFrame(pd.concat([dataset.df[["geometry"]], scores], axis=1))
         return scores
-        
+
     @staticmethod
     def _by_factor_type(df: pd.DataFrame, factors: DatasetFactors) -> pd.DataFrame:
         """Each factor's score is its own value (or the inverse if higher is better)"""
@@ -58,10 +61,11 @@ class FactorwiseScoring:
                 scores[factor.name] = 1.0 * df[factor.name]
         return scores
 
-
     @staticmethod
-    def by_factor_optimal_range_discrepancy(dataset: HazardDataset, optimal_ranges: Dict[str, List[float]], scaled: bool = True) -> gpd.GeoDataFrame:
-        scores = FactorwiseScoring._by_factor_optimal_range_discrepancy(dataset.df, dataset.factors, optimal_ranges)  
+    def by_factor_optimal_range_discrepancy(
+        dataset: HazardDataset, optimal_ranges: Dict[str, List[float]], scaled: bool = True
+    ) -> gpd.GeoDataFrame:
+        scores = FactorwiseScoring._by_factor_optimal_range_discrepancy(dataset.df, dataset.factors, optimal_ranges)
         scores = FactorwiseScoring.scale(scores, scaled)
         scores = gpd.GeoDataFrame(pd.concat([dataset.df[["geometry"]], scores], axis=1))
         return scores
@@ -83,7 +87,6 @@ class FactorwiseScoring:
             if factor.trend == FactorTrend.NEUTRAL:
                 scores[factor.name] = neutral_score(df[factor.name], *low_up_bounds)
         return scores
-
 
     @staticmethod
     def by_factor_reference_values(ref_dataset: HazardDataset, proj_dataset: HazardDataset, scaled: bool = True) -> gpd.GeoDataFrame:
@@ -112,7 +115,5 @@ class FactorwiseScoring:
                 scores[factor] = s
             elif factors[factor].trend == FactorTrend.NEUTRAL:
                 scores[factor] = np.abs(s)
-            
+
         return scores
-
-

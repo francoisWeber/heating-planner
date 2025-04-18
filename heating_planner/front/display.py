@@ -1,6 +1,6 @@
 import streamlit as st
 
-from heating_planner.front.tabs import parameters, reference_definition, map
+from heating_planner.front.tabs import map, parameters, reference_definition
 
 st.set_page_config(layout="wide")
 

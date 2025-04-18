@@ -1,9 +1,20 @@
+from enum import StrEnum
 from typing import Dict
+
 import geopandas as gpd
 import numpy as np
 
 
-class ScoringFusion:
+class ScoringFusion(StrEnum):
+    WEIGHTED_MEAN = "weighted mean of each factor's score"
+    RRF = "reciprocal rank fusion from each factor's rank"
+
+    def __call__(self, scores: gpd.GeoDataFrame, coefs: Dict[str, float]) -> gpd.GeoDataFrame:
+        if self is ScoringFusion.WEIGHTED_MEAN:
+            return ScoringFusion.weighted_mean(scores, coefs)
+        if self is ScoringFusion.RRF:
+            return ScoringFusion.reciprocal_rank_fusion(scores, coefs)
+
     @staticmethod
     def weighted_mean(scores: gpd.GeoDataFrame, coefs: Dict[str, float]) -> gpd.GeoDataFrame:
         weighted_scores = []

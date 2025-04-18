@@ -1,7 +1,8 @@
-from matplotlib import pyplot as plt
 import streamlit as st
+from matplotlib import pyplot as plt
+
 from heating_planner.back.data.base import HazardDataset
-from heating_planner.back.scoring import HazardScoring
+from heating_planner.back.scoring import FactorwiseScoring, ScoringFusion
 from heating_planner.front.cst import VAR_TREND_2_EMOJI
 
 PARAMS_INIT = {}
@@ -30,7 +31,10 @@ def display():
         st.button("retry")
     else:
         hazard_dataset: HazardDataset = st.session_state.dataset_proj
-        scoring = HazardScoring(hazard_dataset)
+        cols = st.columns(2)
+        with cols[0]:
+            factor_scoring = st.selectbox("a", [1, 2])
+        scoring = 1
         cols = st.columns([2, 1, 1])
         coefs = {key: 1 for key in RESTRICT_TO_KEYS}
         for i, key in enumerate(coefs.keys()):
