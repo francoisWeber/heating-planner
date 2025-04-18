@@ -14,7 +14,7 @@ for key, value in PARAMS_INIT.items():
 
 with tabs[1]:
     parameters.display()
-    
+
 if st.session_state.loaded:
     with tabs[0]:
         map.display()

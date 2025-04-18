@@ -20,7 +20,7 @@ def display():
         ref_keys = set(dataset_ref.factors_definitions.keys())
         proj_keys = set(dataset_proj.factors_definitions.keys())
         common_keys = sorted(list(ref_keys.intersection(proj_keys)))
-        
+
         with st.sidebar:
             with st.container(border=True):
                 st.download_button(
@@ -47,12 +47,11 @@ def display():
                             min_v, max_v = reference_ranges[key]
                             st.session_state[slider_name] = (min_v, max_v)
                     st.success("Loaded and applied reference ranges")
-            
 
         cols = st.columns(3)
         with cols[0]:
             ref_cities = st.text_input("Cities", value=DEFAULT_REF_CITIES)
-                
+
         ref_cities = [city.strip() for city in ref_cities.split(",")]
         ref_indices = [dataset_ref.get_index_of_city(city) for city in ref_cities]
         ref_values = {key: {city: dataset_ref.df.iloc[index][key] for city, index in zip(ref_cities, ref_indices)} for key in common_keys}

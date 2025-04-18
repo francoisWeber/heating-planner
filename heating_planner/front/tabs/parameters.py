@@ -13,12 +13,11 @@ drias_proj_path = "/Users/francois.weber/perso/tmp/heating2/data/drias/2050_indi
 clay_path = "/Users/francois.weber/perso/tmp/heating2/data/clay"
 sea_elevation_path = "/Users/francois.weber/perso/tmp/heating2/data/overflow_1m"
 
+
 def display():
     st.subheader("Parameters")
     input_file_ref = st.text_input("Reference file", drias_ref_path)
-    input_file_proj = st.text_input(
-        "Projection file", drias_proj_path
-    )
+    input_file_proj = st.text_input("Projection file", drias_proj_path)
 
     if input_file_proj and input_file_ref:
         st.session_state["dataset_proj"] = load_drias_dataset(input_file_proj)

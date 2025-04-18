@@ -5,21 +5,23 @@ from heating_planner.back.scoring import HazardScoring
 from heating_planner.front.cst import VAR_TREND_2_EMOJI
 
 PARAMS_INIT = {}
-RESTRICT_TO_KEYS = ['nortmm_seas_jja',
-    'nortxm_seas_jja',
-    'nortx35d_yr',
-    'nortx30d_yr',
-    'nortr_yr',
-    'norrr_yr',
-    'norrr_seas_jja',
-    'norrr_seas_djf',
-    'norrrq99_yr',
-    'norrx1d_yr',
-    'norrrq99refd_yr',
-    'norifm40_yr',
-    'norswi04_yr',
+RESTRICT_TO_KEYS = [
+    "nortmm_seas_jja",
+    "nortxm_seas_jja",
+    "nortx35d_yr",
+    "nortx30d_yr",
+    "nortr_yr",
+    "norrr_yr",
+    "norrr_seas_jja",
+    "norrr_seas_djf",
+    "norrrq99_yr",
+    "norrx1d_yr",
+    "norrrq99refd_yr",
+    "norifm40_yr",
+    "norswi04_yr",
     # 'clay_hazard'
-    ]
+]
+
 
 def display():
     st.title("Map")
@@ -27,7 +29,7 @@ def display():
         st.warning("Please load the files first")
         st.button("retry")
     else:
-        hazard_dataset : HazardDataset = st.session_state.dataset_proj
+        hazard_dataset: HazardDataset = st.session_state.dataset_proj
         scoring = HazardScoring(hazard_dataset)
         cols = st.columns([2, 1, 1])
         coefs = {key: 1 for key in RESTRICT_TO_KEYS}
