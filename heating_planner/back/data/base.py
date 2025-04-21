@@ -41,7 +41,7 @@ class Factor:
 
     def __hash__(self):
         return hash(self.name)
-    
+
     def __repr__(self):
         return f"{self.name} ({self.type}): {self.description[:50]}... "
 
@@ -64,7 +64,7 @@ class HazardDataset:
 
     def __post_init__(self):
         self._name2factors = {f.name: f for f in self.factors} if self.factors else {}
-        if not (crs:=self.df.geometry.crs).is_projected:
+        if not (crs := self.df.geometry.crs).is_projected:
             logger.warning(f"Using a non-projected CRS {crs}. Prefer {PREFERED_CRS}")
 
     def get_factor(self, name: str) -> Factor:
@@ -81,7 +81,7 @@ class HazardDataset:
     def get_index_of_city(self, city: str) -> int:
         loc = geo_tool.geocode(city)
         point = Point(loc.longitude, loc.latitude)
-        return self.df["geometry"].to_crs(epsg=4326).distance(point).idxmin() # re-map to GPS CRS for comparison
+        return self.df["geometry"].to_crs(epsg=4326).distance(point).idxmin()  # re-map to GPS CRS for comparison
 
     def __add__(self, other: "HazardDataset"):
         if not isinstance(other, HazardDataset):
@@ -101,13 +101,14 @@ class HazardDataset:
             return self
         else:
             return self.__add__(other)
-    
-@dataclass    
+
+
+@dataclass
 class MappableFactors:
     continuous: List[Factor] | None = None
     discretes: List[Factor] | None = None
     binaries: List[Factor] | None = None
-    
+
     @classmethod
     def from_hazard_datasets(cls, dataset1: HazardDataset, dataset2: HazardDataset):
         common_factors = list(set(dataset1.factors).intersection(set(dataset2.factors)))
@@ -123,9 +124,9 @@ class MappableFactors:
                 discretes.append(factor)
             else:
                 raise ValueError(f"Unknown type for {factor=}")
-            
+
         return cls(continuous=continuous, discretes=discretes, binaries=binaries)
-    
+
     @property
     def weightables(self):
         return self.continuous + self.discretes

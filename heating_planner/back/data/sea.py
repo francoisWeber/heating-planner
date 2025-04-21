@@ -11,7 +11,9 @@ FACTOR_UNIT = "binary submersion"
 MODEL = "sealevelrise.brgm.fr"
 SCENARIO = "1m elevation"
 
-MAX_DISTANCE_M = 1_000 
+MAX_DISTANCE_M = 1_000
+
+
 class SeaElevationDataset(HazardDataset):
     """Dataset loader for sea elevation data."""
 
@@ -29,7 +31,7 @@ class SeaElevationDataset(HazardDataset):
         )
 
     @staticmethod
-    def process_raw_sea_elevation_dataset(sea_elevation_path: str, reference : gpd.GeoDataFrame | HazardDataset, output_path: str):
+    def process_raw_sea_elevation_dataset(sea_elevation_path: str, reference: gpd.GeoDataFrame | HazardDataset, output_path: str):
         """Raw sea elevation shapefile from https://sealevelrise.brgm.fr/slr/ only contains flooded points
         and resolution if far too high comparing to DRIAS dataset. This methods is used to convert and scale it.
 
@@ -44,13 +46,14 @@ class SeaElevationDataset(HazardDataset):
 
         if isinstance(reference, HazardDataset):
             reference = reference.df
-        
+
         logger.info(f"Scaling sea elevation dataset with {reference.shape[0]} points")
-        scaled_sea_df = gpd.sjoin_nearest(reference[["geometry"]], sea_df, how="left", max_distance=MAX_DISTANCE_M).drop(columns="index_right")
-        
+        scaled_sea_df = gpd.sjoin_nearest(reference[["geometry"]], sea_df, how="left", max_distance=MAX_DISTANCE_M).drop(
+            columns="index_right"
+        )
+
         logger.info("Casting sea elevation to binary values 'location submerged'")
         scaled_sea_df[FACTOR_NAME] = (1 - scaled_sea_df[FACTOR_NAME].fillna(1)).astype(bool)
-        
+
         logger.info(f"Saving processed sea elevation dataset to {output_path}")
         scaled_sea_df.to_file(output_path, driver="ESRI Shapefile")
-        

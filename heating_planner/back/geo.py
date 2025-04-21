@@ -14,9 +14,11 @@ REVERSE_CACHE_PREFIX = "reverse"
 
 SEP = "-"
 
+
 class GeoOperation(StrEnum):
     GEOCODE = "geocode"
     REVERSE = "reverse"
+
 
 class CachedNominatim(Nominatim):
     def __init__(self, **kwargs):
@@ -26,11 +28,11 @@ class CachedNominatim(Nominatim):
         self.cache = {operation: {} for operation in GeoOperation}
         self._ensure_cache()
         self._load_cache()
-        
+
     def _ensure_cache(self):
         if not osp.exists(CACHE_DIR):
             CACHE_DIR.mkdir()
-            
+
     def _cache_entry(self, query: Any, obtained_location: Location, operation: GeoOperation):
         # RAM cache
         self.cache[operation][query] = obtained_location
@@ -39,7 +41,7 @@ class CachedNominatim(Nominatim):
         cache_fname = self._to_cache_fname(operation, query)
         with open(cache_fname, "wb") as f:
             pkl.dump(to_cache, f)
-            
+
     def _load_cache(self):
         for file in CACHE_DIR.iterdir():
             if file.suffix != ".pkl":
@@ -47,11 +49,11 @@ class CachedNominatim(Nominatim):
             with open(file, "rb") as f:
                 operation, query, obtained_location = pkl.load(f)
             self.cache[operation][query] = obtained_location
-            
+
     def _to_cache_fname(self, operation: GeoOperation, query: Any) -> str:
         _id = hex(hash((operation, query)))
         return CACHE_DIR / f"cache{_id}.pkl"
-    
+
     @staticmethod
     def _minimal_kwargs(**kwargs):
         if "language" not in kwargs:
@@ -59,7 +61,7 @@ class CachedNominatim(Nominatim):
         if "timeout" not in kwargs:
             kwargs["timeout"] = GEOCODE_TIMEOUT
         return kwargs
-    
+
     def geocode(self, query: Any, **kwargs) -> Location:
         if query in self.cache[GeoOperation.GEOCODE]:
             return self.cache[GeoOperation.GEOCODE][query]
@@ -67,7 +69,7 @@ class CachedNominatim(Nominatim):
         location = super().geocode(query, **kwargs)
         self._cache_entry(query, location, GeoOperation.GEOCODE)
         return location
-    
+
     def reverse(self, query: Any, **kwargs) -> Location:
         if query in self.cache[GeoOperation.REVERSE]:
             return self.cache[GeoOperation.REVERSE][query]
@@ -75,6 +77,6 @@ class CachedNominatim(Nominatim):
         location = super().reverse(query, **kwargs)
         self._cache_entry(query, location, GeoOperation.REVERSE)
         return location
-            
+
 
 geo_tool = CachedNominatim()

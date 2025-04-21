@@ -34,10 +34,11 @@ def neutral_score(x: np.ndarray, lower_bound: float, upper_bound: float) -> np.n
     score += np.where(x > upper_bound, (x - upper_bound) * BAD_SIDE_COEF, 0)
     return score
 
+
 class FactorScaler(StreamlitReadyEnum):
     MINMAX = "min max"
     STANDARD = "standard"
-    
+
     def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
         scaler = MinMaxScaler() if self is FactorScaler.MINMAX else StandardScaler()
         return pd.DataFrame(scaler.fit_transform(df), columns=df.columns, index=df.index)
