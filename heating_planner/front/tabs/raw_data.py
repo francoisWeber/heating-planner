@@ -16,7 +16,7 @@ def display():
         with cols[i % N_COLS]:
             fig, ax = plt.subplots()
             cmap = "RdYlGn" if factor.trend == FactorTrend.HIGHER_BETTER else "RdYlGn_r"
-            df.plot(factor.name, ax=ax, alpha=0.8,legend=True, cmap=cmap)
+            df.plot(factor.name, ax=ax, alpha=0.8,legend=True, cmap=cmap, markersize=1.5)
             st.subheader(factor.name)
             st.write(factor.description + f" ({factor.trend})")
             st.pyplot(fig, use_container_width=False)

@@ -3,7 +3,7 @@ import numpy as np
 import geopandas as gpd
 from sklearn.preprocessing import MinMaxScaler
 
-from heating_planner.back.data.base import HazardDataset
+from heating_planner.back.data.base import HazardDataset, Factor, FactorTrend
 
 from heating_planner.back.streamlit_enums import StreamlitReadyEnum
 
@@ -23,7 +23,7 @@ class Contrast(StreamlitReadyEnum):
         return np.power(values, contrast_factor)
 
 
-def process_score(dataset: HazardDataset, score: np.ndarray, contrast: Contrast, binary_factor_infos: Dict[str, bool]) -> gpd.GeoDataFrame:
+def process_score(dataset: HazardDataset, score: np.ndarray, contrast: Contrast, binary_factor_infos: Dict[Factor, bool]) -> gpd.GeoDataFrame:
     score = MinMaxScaler().fit_transform(score.reshape(-1, 1))
     score = contrast(score)
     geo_score = dataset.df[["geometry"]].copy()
@@ -31,6 +31,9 @@ def process_score(dataset: HazardDataset, score: np.ndarray, contrast: Contrast,
 
     for binary_factor, active in binary_factor_infos.items():
         if active:
-            geo_score["score"] *= dataset.df[binary_factor].astype(float)
+            penalty = dataset.df[binary_factor.name].astype(float)
+            if binary_factor.trend == FactorTrend.LOWER_BETTER:
+                penalty = (1 - penalty)
+            geo_score["score"] *= penalty
 
     return geo_score
