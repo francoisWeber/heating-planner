@@ -3,7 +3,6 @@ import json
 import streamlit as st
 
 from heating_planner.back.data.base import HazardDataset
-from heating_planner.front.cst import VAR_TREND_2_EMOJI
 from heating_planner.front.histogram import InteractiveHistogram
 
 DEFAULT_REF_CITIES = "Strasbourg, L'Aigle, Morlaix"

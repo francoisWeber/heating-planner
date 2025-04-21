@@ -98,3 +98,31 @@ class HazardDataset:
             return self
         else:
             return self.__add__(other)
+    
+@dataclass    
+class MappableFactors:
+    continuous: List[Factor] | None = None
+    discretes: List[Factor] | None = None
+    binaries: List[Factor] | None = None
+    
+    @classmethod
+    def from_hazard_datasets(cls, dataset1: HazardDataset, dataset2: HazardDataset):
+        common_factors = list(set(dataset1.factors).intersection(set(dataset2.factors)))
+        binaries: List[Factor] = []
+        continuous: List[Factor] = []
+        discretes: List[Factor] = []
+        for factor in common_factors:
+            if factor.type == FactorType.BINARY:
+                binaries.append(factor)
+            elif factor.type == FactorType.CONTINUOUS:
+                continuous.append(factor)
+            elif factor.type == FactorType.DISCRETE:
+                discretes.append(factor)
+            else:
+                raise ValueError(f"Unknown type for {factor=}")
+            
+        return cls(continuous=continuous, discretes=discretes, binaries=binaries)
+    
+    @property
+    def weightables(self):
+        return self.continuous + self.discretes
