@@ -3,7 +3,7 @@ from loguru import logger
 from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset, PREFERED_CRS
 
 FACTOR_NAME = "sea_1m_sub"
-FACTOR_DESCR = "Zones touchées par la montée des eaux (1m d'élévation)"
+FACTOR_DESCR = "Zones innondées avec 1m d'élévation"
 FACTOR_TREND = FactorTrend.LOWER_BETTER
 FACTOR_TYPE = FactorType.BINARY
 FACTOR_UNIT = "binary submersion"

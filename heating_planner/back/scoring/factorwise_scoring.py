@@ -4,7 +4,7 @@ from typing import Dict, List
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset
 from heating_planner.back.streamlit_enums import StreamlitReadyEnum
@@ -34,6 +34,14 @@ def neutral_score(x: np.ndarray, lower_bound: float, upper_bound: float) -> np.n
     score += np.where(x > upper_bound, (x - upper_bound) * BAD_SIDE_COEF, 0)
     return score
 
+class FactorScaler(StreamlitReadyEnum):
+    MINMAX = "min max"
+    STANDARD = "standard"
+    
+    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
+        scaler = MinMaxScaler() if self is FactorScaler.MINMAX else StandardScaler()
+        return pd.DataFrame(scaler.fit_transform(df), columns=df.columns, index=df.index)
+
 
 class FactorwiseScoring(StreamlitReadyEnum):
     BY_FACTOR_TREND = "by factor trend"
@@ -42,7 +50,7 @@ class FactorwiseScoring(StreamlitReadyEnum):
     BY_REFERENCE_VALUE = "by comparison wrt a reference"
 
     def __call__(
-        self, dataset: HazardDataset, dataset_historical: HazardDataset, optimal_ranges: Dict[str, List[float]], scaled: bool = True
+        self, dataset: HazardDataset, dataset_historical: HazardDataset, optimal_ranges: Dict[str, List[float]], scaling: FactorScaler
     ) -> gpd.GeoDataFrame:
         if self is FactorwiseScoring.BY_FACTOR_TREND:
             scores = FactorwiseScoring._by_trend(dataset.df, dataset.factors)
@@ -55,7 +63,7 @@ class FactorwiseScoring(StreamlitReadyEnum):
         else:
             raise ValueError()
 
-        scores = FactorwiseScoring.scale(scores, scaled)
+        scores = scaling(scores)
         scores = gpd.GeoDataFrame(pd.concat([dataset.df[["geometry"]], scores], axis=1))
 
         return scores

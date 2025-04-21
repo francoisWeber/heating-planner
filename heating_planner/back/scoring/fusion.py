@@ -32,6 +32,6 @@ class ScoringFusion(StreamlitReadyEnum):
         for factor, coef in coefs.items():
             if factor not in scores.columns:
                 continue
-            weighted_scores += coef / scores[factor].rank(method="min").values
+            weighted_scores += -1 * coef / scores[factor].rank(method="min").values
 
         return weighted_scores
