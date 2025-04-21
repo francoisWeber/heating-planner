@@ -41,6 +41,9 @@ class Factor:
 
     def __hash__(self):
         return hash(self.name)
+    
+    def __repr__(self):
+        return f"{self.name} ({self.type}): {self.description[:50]}... "
 
     def is_binary(self):
         return self.type == FactorType.BINARY
