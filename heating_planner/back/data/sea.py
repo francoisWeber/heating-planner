@@ -1,6 +1,6 @@
 import geopandas as gpd
 
-from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset
+from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset, PREFERED_CRS
 
 FACTOR_NAME = "overflood"
 FACTOR_DESCR = "Zones touchées par la montée des eaux (1m d'élévation)"
@@ -18,7 +18,7 @@ class SeaElevationDataset(HazardDataset):
     @classmethod
     def load_from_path(cls, path: str):
         df = gpd.read_file(path)
-        df = df.to_crs(epsg=4326)
+        df = df.to_crs(PREFERED_CRS)
 
         return cls(
             path=path,

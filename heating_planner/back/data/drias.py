@@ -7,7 +7,7 @@ import geopandas as gpd
 import pandas as pd
 from loguru import logger
 
-from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset
+from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset, PREFERED_CRS
 
 TREND_PREFERENCES_FNAME = "trend_preference_per_var.json"
 
@@ -37,19 +37,15 @@ class DriasDataset(HazardDataset):
         factors_descriptions = cls.get_factors_description_from_lines(raw_lines, sections_loc)
         factors = []
         for name in df.columns:
-            logger.info(f"Processing {name=}")
             trend = factors_trends.get(name)
             if trend is None:
                 continue
-            logger.info(f"Obtained {trend=}")
             description = factors_descriptions.get(name)
             if description is None:
                 continue
             descr_parts = description.split("(")
             description = descr_parts[0].strip()
             unit = "".join(descr_parts[1:])[:-1] if len(descr_parts) > 1 else "no unit"
-            logger.info(f"Obtained {description=}")
-            logger.info(f"Obtained {unit=}")
 
             if trend is None or description is None:
                 continue
@@ -119,4 +115,5 @@ class DriasDataset(HazardDataset):
         data = StringIO("".join(lines))
         df = pd.read_csv(data, sep=";").dropna(axis=0, subset="Contexte").dropna(axis=1, how="all").rename(columns=normalize_colname)
         df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs="EPSG:4326")
+        df = df.to_crs(PREFERED_CRS)
         return df
