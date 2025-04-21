@@ -2,7 +2,7 @@ import streamlit as st
 from matplotlib import pyplot as plt
 
 from heating_planner.back.data.base import HazardDataset, MappableFactors
-from heating_planner.back.scoring.factorwise_scoring import FactorwiseScoring, FactorScaler
+from heating_planner.back.scoring.factorwise_scoring import FactorwiseScoringStrategy, FactorwiseScalingStrategy
 from heating_planner.back.scoring.fusion import ScoringFusion
 from heating_planner.back.scoring.processor import process_score, Contrast, ScoreScalingStrategy
 
@@ -28,10 +28,10 @@ def display():
                     subparams_cols = st.columns([2, 1])
                     with subparams_cols[0]:
                         factor_scoring_strategy = st.radio(
-                            "scoring method", FactorwiseScoring.get_available_options(), index=0, key="scoring_method"
+                            "scoring method", FactorwiseScoringStrategy.get_available_options(), index=0, key="scoring_method"
                         )
                     with subparams_cols[1]:
-                        factors_scaling = st.radio("factors score scaling", FactorScaler.get_available_options())
+                        factors_scaling = st.radio("factors score scaling", FactorwiseScalingStrategy.get_available_options())
             with param_cols[1]:
                 with st.container(border=True):
                     st.subheader("Factor's scores fusion")
@@ -62,13 +62,13 @@ def display():
                 st.markdown("Coefficients for numeric factors")
 
                 # display weightable factors
-                coefs = {factor.name: 1 for factor in mappable_factors.weightables}
+                coefs = {factor: 1 for factor in mappable_factors.weightables}
                 for i, factor in enumerate(mappable_factors.weightables):
                     if i % FACTOR_WEIGHTS_NCOLS == 0:
                         factors_cols = st.columns(FACTOR_WEIGHTS_NCOLS)
 
                     with factors_cols[i % FACTOR_WEIGHTS_NCOLS]:
-                        coefs[factor.name] = st.slider(factor.description[:50], 0, 3, step=1, value=coefs[factor.name])
+                        coefs[factor] = st.slider(factor.description[:50], 0, 3, step=1, value=coefs[factor])
 
                 reset_coefs = st.button("Reset all coefficients", key="reset_coefs")
                 if reset_coefs:

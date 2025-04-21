@@ -51,6 +51,15 @@ class Factor:
     def is_continuous(self):
         return self.type == FactorType.CONTINUOUS
 
+    def __eq__(self, other):
+        return self.name == other.name
+
+    def __lt__(self, other):
+        return self.name < other.name
+
+    def __le__(self, other):
+        return self.name <= other.name
+
 
 @dataclass
 class HazardDataset:

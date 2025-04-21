@@ -31,20 +31,20 @@ class ScoreScalingStrategy(StreamlitReadyEnum):
         if self is ScoreScalingStrategy.MINMAX:
             score = MinMaxScaler().fit_transform(values.reshape(-1, 1))
         else:
-            score = pd.Series(values, name="score").rank(method="first", ascending=True, pct=True).values
+            score = pd.Series(values.squeeze(), name="score").rank(method="first", ascending=True, pct=True).values
         return score
 
 
 def process_score(
     dataset: HazardDataset,
-    score: np.ndarray,
+    score: gpd.GeoDataFrame,
     contrast: Contrast,
     scaling_strategy: ScoreScalingStrategy,
     binary_factor_infos: Dict[Factor, bool],
 ) -> gpd.GeoDataFrame:
-    score = scaling_strategy(score)
+    geo_score = score.pop("geometry").to_frame()
+    score = scaling_strategy(score.values)
     score = contrast(score)
-    geo_score = dataset.df[["geometry"]].copy()
     geo_score["score"] = score.squeeze()
 
     for binary_factor, active in binary_factor_infos.items():

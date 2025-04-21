@@ -1,4 +1,3 @@
-from enum import StrEnum
 from typing import Dict, List
 
 import geopandas as gpd
@@ -18,68 +17,66 @@ def lower_better_score(x: np.ndarray, lower_bound: float, upper_bound: float) ->
     score = np.zeros_like(x, dtype=float)
     score += np.where(x < lower_bound, (lower_bound - x) * GOOD_SIDE_COEF, 0)
     score += np.where(x > upper_bound, (x - upper_bound) * BAD_SIDE_COEF, 0)
-    return score
+    return -1 * score
 
 
 def higher_better_score(x: np.ndarray, lower_bound: float, upper_bound: float) -> np.ndarray:
     score = np.zeros_like(x)
     score += np.where(x < lower_bound, (lower_bound - x) * BAD_SIDE_COEF, 0)
     score += np.where(x > upper_bound, (x - upper_bound) * GOOD_SIDE_COEF, 0)
-    return score
+    return -1 * score
 
 
 def neutral_score(x: np.ndarray, lower_bound: float, upper_bound: float) -> np.ndarray:
     score = np.zeros_like(x)
-    score += np.where(x < lower_bound, (lower_bound - x) * BAD_SIDE_COEF, 0)
-    score += np.where(x > upper_bound, (x - upper_bound) * BAD_SIDE_COEF, 0)
-    return score
+    score += np.where(x < lower_bound, (x - lower_bound) * BAD_SIDE_COEF, 0)
+    score += np.where(x > upper_bound, (upper_bound - x) * BAD_SIDE_COEF, 0)
+    return -1 * score
 
 
-class FactorScaler(StreamlitReadyEnum):
+class FactorwiseScalingStrategy(StreamlitReadyEnum):
     MINMAX = "min max"
     STANDARD = "standard"
 
-    def __call__(self, df: pd.DataFrame) -> pd.DataFrame:
-        scaler = MinMaxScaler() if self is FactorScaler.MINMAX else StandardScaler()
-        return pd.DataFrame(scaler.fit_transform(df), columns=df.columns, index=df.index)
+    def __call__(self, df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        scaler = MinMaxScaler() if self is FactorwiseScalingStrategy.MINMAX else StandardScaler()
+        geometry = df.pop("geometry").to_frame("geometry")
+        scores = pd.DataFrame(scaler.fit_transform(df), index=df.index, columns=df.columns)
+        return gpd.GeoDataFrame(pd.concat([geometry, scores], axis=1))
 
 
-class FactorwiseScoring(StreamlitReadyEnum):
+class FactorwiseScoringStrategy(StreamlitReadyEnum):
     BY_FACTOR_TREND = "by factor trend"
     BY_OPTIMAL_RANGE = "by comparison wrt optimal range"
     BY_HISTORICAL_VALUES = "by comparison wrt historical values"
-    BY_REFERENCE_VALUE = "by comparison wrt a reference"
+    BY_REFERENCE_VALUE = "by comparison wrt a reference point"
 
     def __call__(
-        self, dataset: HazardDataset, dataset_historical: HazardDataset, optimal_ranges: Dict[str, List[float]], scaling: FactorScaler
+        self,
+        dataset: HazardDataset,
+        dataset_historical: HazardDataset,
+        optimal_ranges: Dict[str, List[float]],
+        scaling: FactorwiseScalingStrategy,
     ) -> gpd.GeoDataFrame:
-        if self is FactorwiseScoring.BY_FACTOR_TREND:
-            scores = FactorwiseScoring._by_trend(dataset.df, dataset.factors)
-        elif self is FactorwiseScoring.BY_HISTORICAL_VALUES:
-            scores = FactorwiseScoring._by_historical_value(dataset_historical.df, dataset.df, dataset.factors)
-        elif self is FactorwiseScoring.BY_OPTIMAL_RANGE:
-            scores = FactorwiseScoring._by_optimal_range_discrepancy(dataset.df, dataset.factors, optimal_ranges)
-        elif self is FactorwiseScoring.BY_REFERENCE_VALUE:
+        if self is FactorwiseScoringStrategy.BY_FACTOR_TREND:
+            scores = FactorwiseScoringStrategy._by_trend(dataset.df, dataset.factors)
+        elif self is FactorwiseScoringStrategy.BY_HISTORICAL_VALUES:
+            scores = FactorwiseScoringStrategy._by_historical_value(dataset_historical, dataset)
+        elif self is FactorwiseScoringStrategy.BY_OPTIMAL_RANGE:
+            scores = FactorwiseScoringStrategy._by_optimal_range_discrepancy(dataset.df, dataset.factors, optimal_ranges)
+        elif self is FactorwiseScoringStrategy.BY_REFERENCE_VALUE:
             raise NotImplementedError("single point ref scoring not implemented yet")
         else:
             raise ValueError()
 
         scores = scaling(scores)
-        scores = gpd.GeoDataFrame(pd.concat([dataset.df[["geometry"]], scores], axis=1))
 
         return scores
 
     @staticmethod
-    def scale(df: pd.DataFrame, scaled: bool) -> pd.DataFrame:
-        if scaled:
-            scaler = MinMaxScaler()
-            df = pd.DataFrame(scaler.fit_transform(df), columns=df.columns, index=df.index)
-        return df
-
-    @staticmethod
-    def _by_trend(df: pd.DataFrame, factors: List[Factor]) -> pd.DataFrame:
+    def _by_trend(df: gpd.GeoDataFrame, factors: List[Factor]) -> gpd.GeoDataFrame:
         """Each factor's score is its own value (or the inverse if higher is better)"""
-        scores = pd.DataFrame()
+        scores = df[["geometry"]].copy()
         for factor in factors:
             if factor.type == FactorType.BINARY:
                 continue
@@ -90,9 +87,11 @@ class FactorwiseScoring(StreamlitReadyEnum):
         return scores
 
     @staticmethod
-    def _by_optimal_range_discrepancy(df: pd.DataFrame, factors: List[Factor], optimal_ranges: Dict[str, List[float]]) -> pd.DataFrame:
+    def _by_optimal_range_discrepancy(
+        df: gpd.GeoDataFrame, factors: List[Factor], optimal_ranges: Dict[str, List[float]]
+    ) -> gpd.GeoDataFrame:
         """Compare each factor to its optimal range and measure its discrepancy according to the factor's type"""
-        scores = pd.DataFrame()
+        scores = df[["geometry"]].copy()
         for factor in factors:
             if factor.name not in optimal_ranges:
                 continue
@@ -103,28 +102,32 @@ class FactorwiseScoring(StreamlitReadyEnum):
                 scores[factor.name] = higher_better_score(df[factor.name], *low_up_bounds)
             if factor.trend == FactorTrend.NEUTRAL:
                 scores[factor.name] = neutral_score(df[factor.name], *low_up_bounds)
+
         return scores
 
     @staticmethod
-    def _by_historical_value(df_hist: gpd.GeoDataFrame, df_proj: gpd.GeoDataFrame, factors: List[Factor]) -> pd.DataFrame:
+    def _by_historical_value(ds_hist: HazardDataset, ds_proj: HazardDataset) -> pd.DataFrame:
         SUFFIX_REF = "L"
         SUFFIX_PROJ = "R"
-        common_factors = sorted(list(set(df_hist.columns).intersection(set(df_proj.columns))))
-        df = gpd.sjoin_nearest(df_hist[common_factors], df_proj[common_factors], lsuffix=SUFFIX_REF, rsuffix=SUFFIX_PROJ)
-        name2factor = {factor.name: factor for factor in factors}
+        common_factors = sorted(list(set(ds_hist.factors).intersection(set(ds_proj.factors))))
+        df_hist = ds_hist.df[[f.name for f in common_factors] + ["geometry"]]
+        df_proj = ds_proj.df[[f.name for f in common_factors] + ["geometry"]]
 
-        scores = pd.DataFrame()
-        for factor_name in common_factors:
-            if factor_name == "geometry":
+        df = gpd.sjoin_nearest(df_hist, df_proj, lsuffix=SUFFIX_REF, rsuffix=SUFFIX_PROJ, how="inner", exclusive=True)
+
+        scores = df[["geometry"]].copy()
+        for factor in common_factors:
+            if factor.is_binary():
                 continue
-            factor_ref = factor_name + "_" + SUFFIX_REF
-            factor_proj = factor_name + "_" + SUFFIX_PROJ
-            s = (df[factor_proj] - df[factor_ref]) / np.abs(df[factor_ref])
-            if name2factor[factor_name].trend == FactorTrend.LOWER_BETTER:
-                scores[factor_name] = -1.0 * s
-            elif name2factor[factor_name].trend == FactorTrend.HIGHER_BETTER:
-                scores[factor_name] = s
-            elif name2factor[factor_name].trend == FactorTrend.NEUTRAL:
-                scores[factor_name] = np.abs(s)
+            values_hist = df[factor.name + "_" + SUFFIX_REF]
+            values_proj = df[factor.name + "_" + SUFFIX_PROJ]
+            numerical_stability_value = values_hist[values_hist > 0].min()
+            rel_diff = (values_proj - values_hist) / (numerical_stability_value + values_hist.abs())
+            if factor.trend == FactorTrend.LOWER_BETTER:
+                scores[factor.name] = -rel_diff
+            elif factor.trend == FactorTrend.HIGHER_BETTER:
+                scores[factor.name] = rel_diff
+            elif factor.trend == FactorTrend.NEUTRAL:
+                scores[factor.name] = rel_diff.abs()
 
         return scores

@@ -26,7 +26,10 @@ def display():
         clay_ref = load_and_cache_dataset(clay_path, ClayHazardDataset)
         sea_proj = load_and_cache_dataset(sea_elevation_path, SeaElevationDataset)
 
-        st.session_state["dataset_proj"] = drias_proj + clay_ref + sea_proj
-        st.session_state["dataset_ref"] = drias_ref + clay_ref + sea_proj
+        dataset_proj = drias_proj + clay_ref + sea_proj
+        dataset_ref = drias_ref + clay_ref + sea_proj
+
+        st.session_state["dataset_proj"] = dataset_proj
+        st.session_state["dataset_ref"] = dataset_ref
         st.session_state["loaded"] = True
         st.markdown(":heavy_check_mark: Files loaded")
