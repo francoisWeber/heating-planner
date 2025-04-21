@@ -47,11 +47,15 @@ def process_score(
     score = contrast(score)
     geo_score["score"] = score.squeeze()
 
-    for binary_factor, active in binary_factor_infos.items():
-        if active:
-            penalty = dataset.df[binary_factor.name].astype(float)
-            if binary_factor.trend == FactorTrend.LOWER_BETTER:
-                penalty = 1 - penalty
-            geo_score["score"] *= penalty
-
+    for factor, is_active in binary_factor_infos.items():
+        if is_active:
+            penalty = dataset.df[["geometry", factor.name]]
+            geo_score = gpd.sjoin_nearest(geo_score, penalty, how="inner", exclusive=True, max_distance=10_000)
+            if factor.trend == FactorTrend.HIGHER_BETTER:
+                geo_score[geo_score[factor.name] is True, "score"] = 0.0
+            else:
+                geo_score[geo_score[factor.name] is False, "score"] = 0.0
+                
+            geo_score.drop(columns=[factor.name, "index_right"])
+        
     return geo_score
