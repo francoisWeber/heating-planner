@@ -40,6 +40,7 @@ class FactorwiseScoringStrategy(StreamlitReadyEnum):
     BY_OPTIMAL_RANGE = "by comparison wrt optimal range"
     BY_HISTORICAL_VALUES = "by comparison wrt historical values"
     BY_REFERENCE_VALUE = "by comparison wrt a reference point"
+    RAW_VALUES = "raw values"
 
     def __call__(
         self,
@@ -56,6 +57,8 @@ class FactorwiseScoringStrategy(StreamlitReadyEnum):
             scores = FactorwiseScoringStrategy._by_optimal_range_discrepancy(dataset.df, dataset.factors, optimal_ranges)
         elif self is FactorwiseScoringStrategy.BY_REFERENCE_VALUE:
             raise NotImplementedError("single point ref scoring not implemented yet")
+        elif self is FactorwiseScoringStrategy.RAW_VALUES:
+            scores = dataset.df.copy()
         else:
             raise ValueError()
 

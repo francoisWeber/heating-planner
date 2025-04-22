@@ -11,8 +11,11 @@ class GeoPandasScalingStrategy(StreamlitReadyEnum):
     MINMAX = "min max"
     STANDARD = "standard"
     RANK = "rank"
+    NONE = "none"
 
     def __call__(self, df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+        if self is GeoPandasScalingStrategy.NONE:
+            return df
         geometry = df.pop("geometry").to_frame("geometry")
         if self is GeoPandasScalingStrategy.RANK:
             scores = df.rank(method="min", pct=True)
