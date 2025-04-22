@@ -9,6 +9,7 @@ from shapely.geometry import Point
 from heating_planner.back.geo import geo_tool
 
 PREFERED_CRS = "EPSG:2154"
+SJOIN_MAX_DISTANCE_M = 8_000  # meters
 
 
 class FactorTrend(StrEnum):
@@ -98,7 +99,7 @@ class HazardDataset:
         if self.df is None or other.df is None:
             raise ValueError("Cannot add datasets with None df")
 
-        merged_df = gpd.sjoin_nearest(self.df, other.df, how="inner").drop(columns=["index_right"])
+        merged_df = gpd.sjoin_nearest(self.df, other.df, how="inner", max_distance=SJOIN_MAX_DISTANCE_M).drop(columns=["index_right"])
         path = f"{self.path}_{other.path}"
         model = f"{self.model}_{other.model}"
         scenario = f"{self.scenario}_{other.scenario}"

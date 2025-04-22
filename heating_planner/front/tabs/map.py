@@ -2,9 +2,10 @@ import streamlit as st
 from matplotlib import pyplot as plt
 
 from heating_planner.back.data.base import HazardDataset, MappableFactors
-from heating_planner.back.scoring.factorwise_scoring import FactorwiseScoringStrategy, FactorwiseScalingStrategy
+from heating_planner.back.scoring.factorwise_scoring import FactorwiseScoringStrategy
 from heating_planner.back.scoring.fusion import ScoringFusion
-from heating_planner.back.scoring.processor import process_score, Contrast, ScoreScalingStrategy
+from heating_planner.back.scoring.processor import process_score, Contrast
+from heating_planner.back.scoring.scaler import GeoPandasScalingStrategy
 
 PARAMS_INIT = {}
 MARKER_SIZE = 2.0
@@ -31,7 +32,7 @@ def display():
                             "scoring method", FactorwiseScoringStrategy.get_available_options(), index=0, key="scoring_method"
                         )
                     with subparams_cols[1]:
-                        factors_scaling = st.radio("factors score scaling", FactorwiseScalingStrategy.get_available_options())
+                        factors_scaling = st.radio("factors score scaling", GeoPandasScalingStrategy.get_available_options())
             with param_cols[1]:
                 with st.container(border=True):
                     st.subheader("Factor's scores fusion")
@@ -42,7 +43,7 @@ def display():
                     subparams_cols = st.columns([1, 1])
                     with subparams_cols[0]:
                         score_scaling_strategy = st.radio(
-                            "scale method", ScoreScalingStrategy.get_available_options(), index=0, key="scaling"
+                            "scale method", GeoPandasScalingStrategy.get_available_options(), index=0, key="scaling"
                         )
                     with subparams_cols[1]:
                         contrast = st.radio("contrast management", options=Contrast.get_available_options(), index=1)

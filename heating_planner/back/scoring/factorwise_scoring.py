@@ -3,10 +3,11 @@ from typing import Dict, List
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset
 from heating_planner.back.streamlit_enums import StreamlitReadyEnum
+from heating_planner.back.scoring.scaler import GeoPandasScalingStrategy
+
 
 SCORE_COL = "score"
 GOOD_SIDE_COEF = 0.1
@@ -34,17 +35,6 @@ def neutral_score(x: np.ndarray, lower_bound: float, upper_bound: float) -> np.n
     return -1 * score
 
 
-class FactorwiseScalingStrategy(StreamlitReadyEnum):
-    MINMAX = "min max"
-    STANDARD = "standard"
-
-    def __call__(self, df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-        scaler = MinMaxScaler() if self is FactorwiseScalingStrategy.MINMAX else StandardScaler()
-        geometry = df.pop("geometry").to_frame("geometry")
-        scores = pd.DataFrame(scaler.fit_transform(df), index=df.index, columns=df.columns)
-        return gpd.GeoDataFrame(pd.concat([geometry, scores], axis=1))
-
-
 class FactorwiseScoringStrategy(StreamlitReadyEnum):
     BY_FACTOR_TREND = "by factor trend"
     BY_OPTIMAL_RANGE = "by comparison wrt optimal range"
@@ -56,7 +46,7 @@ class FactorwiseScoringStrategy(StreamlitReadyEnum):
         dataset: HazardDataset,
         dataset_historical: HazardDataset,
         optimal_ranges: Dict[str, List[float]],
-        scaling: FactorwiseScalingStrategy,
+        scaling: GeoPandasScalingStrategy,
     ) -> gpd.GeoDataFrame:
         if self is FactorwiseScoringStrategy.BY_FACTOR_TREND:
             scores = FactorwiseScoringStrategy._by_trend(dataset.df, dataset.factors)
