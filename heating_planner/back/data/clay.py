@@ -10,7 +10,6 @@ FACTOR_UNIT = "3-level"
 
 MODEL = "georisques"
 SCENARIO = "historique"
-VAR_NAME = "clay_hazard"
 
 
 class ClayHazardDataset(HazardDataset):
@@ -21,10 +20,10 @@ class ClayHazardDataset(HazardDataset):
     @classmethod
     def load_from_path(cls, path: str):
         df = gpd.read_file(path)
-        df = df.drop(columns=["DPT", "ALEA"]).rename(columns={"NIVEAU": VAR_NAME})
+        df = df.drop(columns=["DPT", "ALEA"]).rename(columns={"NIVEAU": FACTOR_NAME})
         df = df.to_crs(PREFERED_CRS)  # Convert to WGS84
 
-        factors = [Factor(name=VAR_NAME, description=FACTOR_DEF, trend=FACTOR_TREND, type=FACTOR_TYPE, unit=FACTOR_UNIT)]
+        factors = [Factor(name=FACTOR_NAME, description=FACTOR_DEF, trend=FACTOR_TREND, type=FACTOR_TYPE, unit=FACTOR_UNIT)]
 
         return cls(
             path=path,
