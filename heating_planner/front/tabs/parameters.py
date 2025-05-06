@@ -15,6 +15,7 @@ clay_path = "/Users/francois.weber/perso/tmp/heating2/data/clay"
 sea_elevation_path = "/Users/francois.weber/perso/tmp/heating2/data/sea_elevation"
 
 
+@st.fragment
 def display():
     st.subheader("Parameters")
     input_file_ref = st.text_input("Reference file", drias_ref_path)

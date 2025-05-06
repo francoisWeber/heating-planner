@@ -15,7 +15,7 @@ MARKER_SIZE = 2.0
 
 FACTOR_WEIGHTS_NCOLS = 3
 
-
+@st.fragment
 def display():
     if not st.session_state.loaded:
         st.warning("Please load the files first")
