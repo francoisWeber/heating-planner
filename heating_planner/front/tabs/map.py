@@ -7,6 +7,8 @@ from heating_planner.back.scoring.fusion import ScoringFusion
 from heating_planner.back.scoring.processor import process_score, Contrast
 from heating_planner.back.scoring.scaler import GeoPandasScalingStrategy
 from heating_planner.back.geo.coder import geocoding
+from heating_planner.back.geo.tools import get_topn_with_surroundings
+from heating_planner.crs import GPS_CRS
 
 PARAMS_INIT = {}
 MARKER_SIZE = 2.0
@@ -63,19 +65,16 @@ def display():
 
                 st.markdown("Coefficients for numeric factors")
 
-                # display weightable factors
-                coefs = {factor: 1 for factor in mappable_factors.weightables}
-                for i, factor in enumerate(mappable_factors.weightables):
-                    if i % FACTOR_WEIGHTS_NCOLS == 0:
-                        factors_cols = st.columns(FACTOR_WEIGHTS_NCOLS)
+                with st.form("weight-form"):
+                    # display weightable factors
+                    coefs = {factor: 1 for factor in mappable_factors.weightables}
+                    for i, factor in enumerate(mappable_factors.weightables):
+                        if i % FACTOR_WEIGHTS_NCOLS == 0:
+                            factors_cols = st.columns(FACTOR_WEIGHTS_NCOLS)
 
-                    with factors_cols[i % FACTOR_WEIGHTS_NCOLS]:
-                        coefs[factor] = st.slider(factor.description[:50], 0, 3, step=1, value=coefs[factor])
-
-                reset_coefs = st.button("Reset all coefficients", key="reset_coefs")
-                if reset_coefs:
-                    for k in coefs.keys():
-                        coefs[k] = 0
+                        with factors_cols[i % FACTOR_WEIGHTS_NCOLS]:
+                            coefs[factor] = st.slider(factor.description[:50], 0, 3, step=1, value=coefs[factor])
+                    st.form_submit_button("update")
 
         with map_and_factors_cols[0]:
             with st.spinner("Computing score ..."):
@@ -88,3 +87,23 @@ def display():
                 fig, ax = plt.subplots()
                 hazard_map.plot("score", ax=ax, legend=True, cmap="RdYlGn", markersize=MARKER_SIZE)
                 st.pyplot(fig)
+                st.download_button("Download GeoDF", hazard_map.to_json(), "heating_map_scores.json")
+                
+    with st.container(border=True):
+        cols = st.columns(2)
+        with cols[0]:
+            st.subheader("Top 10 points")
+            top_rows = get_topn_with_surroundings(hazard_map, n=10, score_colname="score").to_crs(GPS_CRS)
+            geometries = top_rows.geometry.to_list()
+            coords = [tuple(coord[0] for coord in geo.coords.xy[::-1]) for geo in geometries]
+            locations = [geocoding.reverse(coord) for coord in coords]
+            for i, loc in enumerate(locations):
+                st.markdown(f"**Top {i+1}**\n => {loc.address}")
+                
+        with cols[1]:
+            st.subheader("Score of selected cities")
+            cities_str = st.text_input("cities to check")
+            cities = [city.strip() for city in cities_str.split(",")]
+            
+            
+            
