@@ -66,6 +66,26 @@ class FactorwiseScoringStrategy(StreamlitReadyEnum):
 
         return scores
 
+    def get_score_as_hazard_ds(
+        self,
+        dataset: HazardDataset,
+        dataset_historical: HazardDataset,
+        optimal_ranges: Dict[str, List[float]],
+        scaling: GeoPandasScalingStrategy,
+    ) -> HazardDataset:
+        scores = self(
+            dataset=dataset,
+            dataset_historical=dataset_historical,
+            optimal_ranges=optimal_ranges,
+            scaling=scaling,
+        )
+        factors = [
+            Factor(col, f"marginal score of {col}", trend=FactorTrend.HIGHER_BETTER, type=FactorType.CONTINUOUS, unit="none")
+            for col in scores.columns
+            if col != "geometry"
+        ]
+        return HazardDataset(df=scores, factors=factors)
+
     @staticmethod
     def _by_trend(df: gpd.GeoDataFrame, factors: List[Factor]) -> gpd.GeoDataFrame:
         """Each factor's score is its own value (or the inverse if higher is better)"""
