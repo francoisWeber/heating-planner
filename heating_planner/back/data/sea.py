@@ -1,6 +1,6 @@
 import geopandas as gpd
 from loguru import logger
-from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset, PREFERED_CRS
+from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset, METRIC_CRS
 
 FACTOR_NAME = "sea_1m_sub"
 FACTOR_DESCR = "Zones innondées avec 1m d'élévation"
@@ -20,7 +20,7 @@ class SeaElevationDataset(HazardDataset):
     @classmethod
     def load_from_path(cls, path: str):
         df = gpd.read_file(path)
-        df = df.to_crs(PREFERED_CRS)
+        df = df.to_crs(METRIC_CRS)
 
         return cls(
             path=path,

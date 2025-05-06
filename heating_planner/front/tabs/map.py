@@ -6,6 +6,7 @@ from heating_planner.back.scoring.factorwise_scoring import FactorwiseScoringStr
 from heating_planner.back.scoring.fusion import ScoringFusion
 from heating_planner.back.scoring.processor import process_score, Contrast
 from heating_planner.back.scoring.scaler import GeoPandasScalingStrategy
+from heating_planner.back.geo.coder import geocoding
 
 PARAMS_INIT = {}
 MARKER_SIZE = 2.0

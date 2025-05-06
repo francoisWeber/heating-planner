@@ -6,9 +6,9 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point
 
-from heating_planner.back.geo import geo_tool
+from heating_planner.back.geo.coder import geocoding
+from heating_planner.crs import METRIC_CRS
 
-PREFERED_CRS = "EPSG:2154"
 SJOIN_MAX_DISTANCE_M = 8_000  # meters
 
 
@@ -75,7 +75,7 @@ class HazardDataset:
     def __post_init__(self):
         self._name2factors = {f.name: f for f in self.factors} if self.factors else {}
         if not (crs := self.df.geometry.crs).is_projected:
-            logger.warning(f"Using a non-projected CRS {crs}. Prefer {PREFERED_CRS}")
+            logger.warning(f"Using a non-projected CRS {crs}. Prefer {METRIC_CRS}")
 
     def get_factor(self, name: str) -> Factor:
         return self._name2factors.get(name)
@@ -89,7 +89,7 @@ class HazardDataset:
         return self.df[[factor.name for factor in self.factors]]
 
     def get_index_of_city(self, city: str) -> int:
-        loc = geo_tool.geocode(city)
+        loc = geocoding.geocode(city)
         point = Point(loc.longitude, loc.latitude)
         return self.df["geometry"].to_crs(epsg=4326).distance(point).idxmin()  # re-map to GPS CRS for comparison
 

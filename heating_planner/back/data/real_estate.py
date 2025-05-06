@@ -2,8 +2,7 @@ from typing import List
 import geopandas as gpd
 import pandas as pd
 
-from heating_planner.back.data.base import PREFERED_CRS, Factor, FactorTrend, FactorType, HazardDataset
-
+from heating_planner.back.data.base import METRIC_CRS, Factor, FactorTrend, FactorType, HazardDataset
 
 
 FACTOR_NAME = "real_estate_prices"
@@ -21,14 +20,13 @@ FRANCE_LON_MIN = -5
 FRANCE_LON_MAX = 9
 
 SJOIN_MAX_DIST_AGG_DVF = 20_000
-        
+
 
 class RealEstatePricesEuroPerM2(HazardDataset):
-    
     @classmethod
     def load_from_path(cls, path: str):
         df = gpd.read_file(path)
-        df = df.to_crs(PREFERED_CRS)  # Convert to WGS84
+        df = df.to_crs(METRIC_CRS)  # Convert to WGS84
 
         factors = [Factor(name=FACTOR_NAME, description=FACTOR_DEF, trend=FACTOR_TREND, type=FACTOR_TYPE, unit=FACTOR_UNIT)]
 
@@ -39,7 +37,7 @@ class RealEstatePricesEuroPerM2(HazardDataset):
             scenario=SCENARIO,
             factors=factors,
         )
-        
+
     @staticmethod
     def _filter_dvf_df(df: pd.DataFrame) -> pd.DataFrame:
         df = df[df.type_local.isin(["Maison", "Appartement"])].reset_index(drop=True).dropna(axis=1, how="all")
@@ -47,22 +45,26 @@ class RealEstatePricesEuroPerM2(HazardDataset):
         df = df[["latitude", "longitude", "surface_reelle_bati", "type_local", "nom_commune", "valeur_fonciere"]]
         df["price_per_m2"] = df.valeur_fonciere / df.surface_reelle_bati
         df = df[df.price_per_m2 < 1e4].reset_index(drop=True)
-        
+
     @staticmethod
     def _merge_dvf_data_onto_ref_geometry(dvf_df: gpd.GeoDataFrame, ref_df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-        gdf = gpd.sjoin_nearest(ref_df.to_crs(PREFERED_CRS), dvf_df.to_crs(PREFERED_CRS), how="left", max_distance=SJOIN_MAX_DIST_AGG_DVF)
-        return gpd.GeoDataFrame(gdf.groupby("geometry").price_per_m2.mean().reset_index(), geometry="geometry").to_crs(SJOIN_MAX_DIST_AGG_DVF)
-        
+        gdf = gpd.sjoin_nearest(ref_df.to_crs(METRIC_CRS), dvf_df.to_crs(METRIC_CRS), how="left", max_distance=SJOIN_MAX_DIST_AGG_DVF)
+        return gpd.GeoDataFrame(gdf.groupby("geometry").price_per_m2.mean().reset_index(), geometry="geometry").to_crs(
+            SJOIN_MAX_DIST_AGG_DVF
+        )
+
     @staticmethod
     def _convert_dvf_to_gdf(df: pd.DataFrame) -> gpd.GeoDataFrame:
-        return gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs="EPSG:4326").drop(columns=["longitude", "latitude"])
-        
+        return gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs="EPSG:4326").drop(
+            columns=["longitude", "latitude"]
+        )
+
     @staticmethod
     def _filter_dvf_gdf(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         gdf = gdf[gdf.geometry.apply(lambda x: x.is_valid)]
         gdf = gdf.cx[FRANCE_LON_MIN:FRANCE_LON_MAX, FRANCE_LAT_MIN:FRANCE_LAT_MAX]
         return gdf
-    
+
     @staticmethod
     def prepare_dvf_data_wrt_reference_data(dvf_paths: str | List[str], ref_ds: HazardDataset, output_dir: str) -> None:
         if isinstance(dvf_paths, str):
