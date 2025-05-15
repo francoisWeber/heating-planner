@@ -19,7 +19,8 @@ class SeaElevationDataset(HazardDataset):
 
     @classmethod
     def load_from_path(cls, path: str):
-        df = gpd.read_file(path)
+        local_path = cls.resolve_path(path)
+        df = gpd.read_file(local_path)
         df = df.to_crs(METRIC_CRS)
 
         return cls(
@@ -40,8 +41,9 @@ class SeaElevationDataset(HazardDataset):
             reference (gpd.GeoDataFrame | HazardDataset): a reference dataset to use for the scaling
             output_path (str): where to save the processed sea elevation dataset
         """
-        logger.info(f"Reading raw sea elevation dataset from {sea_elevation_path}")
-        gdf = gpd.read_file(sea_elevation_path).to_crs("EPSG:2154")
+        local_path = HazardDataset.resolve_path(sea_elevation_path)
+        logger.info(f"Reading raw sea elevation dataset from {local_path}")
+        gdf = gpd.read_file(local_path).to_crs("EPSG:2154")
         sea_df = gdf[["geometry", "FID_histol"]].rename(columns={"FID_histol": FACTOR_NAME})
 
         if isinstance(reference, HazardDataset):

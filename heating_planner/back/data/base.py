@@ -5,6 +5,11 @@ from loguru import logger
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point
+import os
+import tempfile
+import shutil
+from urllib.parse import urlparse
+import requests
 
 from heating_planner.back.geo.coder import geocoding
 from heating_planner.crs import METRIC_CRS
@@ -80,6 +85,66 @@ class HazardDataset:
     def get_factor(self, name: str) -> Factor:
         return self._name2factors.get(name)
 
+    @staticmethod
+    def resolve_path(path: str) -> str:
+        """
+        Resolves a local path or HTTP/HTTPS URL to a local file path.
+        Downloads the file if necessary and returns the local path.
+        
+        Args:
+            path: A local file path or URL
+            
+        Returns:
+            A local file path that can be used to load the data
+            
+        Raises:
+            FileNotFoundError: If the local file doesn't exist
+            ValueError: If the URL scheme is not supported
+            requests.RequestException: If there's an error downloading the URL
+        """
+        parsed = urlparse(path)
+        scheme = parsed.scheme
+
+        if scheme in ("http", "https"):
+            # Download from URL
+            logger.info(f"Downloading resource from {path}")
+            with requests.get(path, stream=True, timeout=10) as r:
+                r.raise_for_status()
+                suffix = os.path.splitext(parsed.path)[-1]
+                if not suffix:
+                    # If no file extension in URL, try to determine from content type
+                    content_type = r.headers.get('content-type', '')
+                    if 'text/plain' in content_type:
+                        suffix = '.txt'
+                    elif 'application/json' in content_type:
+                        suffix = '.json'
+                    elif 'application/zip' in content_type:
+                        suffix = '.zip'
+                    elif 'application/octet-stream' in content_type:
+                        # Try to determine format from content-disposition if available
+                        content_disp = r.headers.get('content-disposition', '')
+                        if 'filename=' in content_disp:
+                            filename = content_disp.split('filename=')[-1].strip('"\'')
+                            suffix = os.path.splitext(filename)[-1]
+                        else:
+                            # Default to .dat for unknown binary content
+                            suffix = '.dat'
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                    logger.info(f"Downloaded resource to {f.name}")
+                    return f.name
+
+        elif scheme == "" or scheme == "file":
+            # Local file
+            local_path = parsed.path if scheme == "file" else path
+            if not os.path.exists(local_path):
+                raise FileNotFoundError(f"File not found: {local_path}")
+            return local_path
+
+        else:
+            raise ValueError(f"Unsupported path scheme: {scheme}")
+            
     @classmethod
     def load_from_path(cls, path: str):
         """Load dataset from path"""

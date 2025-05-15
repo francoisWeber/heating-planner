@@ -19,7 +19,8 @@ class ClayHazardDataset(HazardDataset):
 
     @classmethod
     def load_from_path(cls, path: str):
-        df = gpd.read_file(path)
+        local_path = cls.resolve_path(path)
+        df = gpd.read_file(local_path)
         df = df.drop(columns=["DPT", "ALEA"]).rename(columns={"NIVEAU": FACTOR_NAME})
         df = df.to_crs(METRIC_CRS)  # Convert to WGS84
 

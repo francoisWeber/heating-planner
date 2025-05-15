@@ -24,6 +24,7 @@ streamlit-authenticator = "^0.4.2"
 seaborn = "^0.13.2"
 ruff = "^0.11.4"
 geopandas = "^1.0.1"
+requests = "^2.31.0"
 
 
 [tool.poetry.group.dev.dependencies]
