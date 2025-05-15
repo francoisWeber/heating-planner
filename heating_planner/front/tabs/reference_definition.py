@@ -9,6 +9,7 @@ DEFAULT_REF_CITIES = "Strasbourg, L'Aigle, Morlaix"
 
 PARAMS_INIT = {"reference_ranges": {}}
 
+
 def display():
     st.subheader("Reference definition")
     if not st.session_state.loaded:

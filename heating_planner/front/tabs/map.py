@@ -15,6 +15,7 @@ MARKER_SIZE = 2.0
 
 FACTOR_WEIGHTS_NCOLS = 3
 
+
 @st.fragment
 def display():
     if not st.session_state.loaded:
@@ -88,7 +89,7 @@ def display():
                 hazard_map.plot("score", ax=ax, legend=True, cmap="RdYlGn", markersize=MARKER_SIZE)
                 st.pyplot(fig)
                 st.download_button("Download GeoDF", hazard_map.to_json(), "heating_map_scores.json")
-                
+
     with st.container(border=True):
         cols = st.columns(2)
         with cols[0]:
@@ -98,12 +99,9 @@ def display():
             coords = [tuple(coord[0] for coord in geo.coords.xy[::-1]) for geo in geometries]
             locations = [geocoding.reverse(coord) for coord in coords]
             for i, loc in enumerate(locations):
-                st.markdown(f"**Top {i+1}**\n => {loc.address}")
-                
+                st.markdown(f"**Top {i + 1}**\n => {loc.address}")
+
         with cols[1]:
             st.subheader("Score of selected cities")
             cities_str = st.text_input("cities to check")
             cities = [city.strip() for city in cities_str.split(",")]
-            
-            
-            

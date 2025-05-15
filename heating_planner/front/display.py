@@ -7,7 +7,7 @@ st.set_page_config(layout="wide")
 
 with open("./credentials.yaml") as f:
     config = yaml.load(f, Loader=yaml.loader.SafeLoader)
-    
+
 authenticator = stauth.Authenticate(
     config["credentials"],
     config["cookie"]["name"],
@@ -27,7 +27,6 @@ if logged_status:
         if key not in st.session_state:
             st.session_state[key] = value
 
-
     with tabs[1]:
         parameters.display()
 
@@ -40,7 +39,7 @@ if logged_status:
 
         with tabs[3]:
             raw_data.display()
-    
+
 elif logged_status is False:
     st.error("Wrong credentials !", icon="🚨")
 else:

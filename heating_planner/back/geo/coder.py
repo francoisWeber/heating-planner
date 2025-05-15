@@ -19,6 +19,7 @@ class GeoCodingOperation(StrEnum):
     GEOCODE = "geocode"
     REVERSE = "reverse"
 
+
 class CachedNominatim(Nominatim):
     def __init__(self, **kwargs):
         if "user_agent" not in kwargs:
