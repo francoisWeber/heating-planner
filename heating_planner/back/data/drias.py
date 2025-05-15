@@ -7,7 +7,8 @@ import geopandas as gpd
 import pandas as pd
 from loguru import logger
 
-from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset, METRIC_CRS
+from heating_planner.back.data.base import HazardDataset, METRIC_CRS
+from heating_planner.back.data.model.factor import Factor, FactorTrend, FactorType
 
 # Hardcoded trend preferences based on variable meanings
 DRIAS_TREND_PREFERENCES = {

@@ -3,7 +3,7 @@ from typing import Dict
 import geopandas as gpd
 import numpy as np
 from heating_planner.back.streamlit_enums import StreamlitReadyEnum
-from heating_planner.back.data.base import Factor
+from heating_planner.back.data.model.factor import Factor
 
 
 class ScoringFusion(StreamlitReadyEnum):

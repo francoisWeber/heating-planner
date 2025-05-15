@@ -4,7 +4,8 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
-from heating_planner.back.data.base import Factor, FactorTrend, FactorType, HazardDataset
+from heating_planner.back.data.base import HazardDataset
+from heating_planner.back.data.model.factor import Factor, FactorTrend, FactorType
 from heating_planner.back.streamlit_enums import StreamlitReadyEnum
 from heating_planner.back.scoring.scaler import GeoPandasScalingStrategy
 

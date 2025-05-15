@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 import streamlit as st
-from heating_planner.back.data.base import HazardDataset, FactorTrend
+from heating_planner.back.data.base import HazardDataset
+from heating_planner.back.data.model.factor import FactorTrend
 from heating_planner.back.scoring.factorwise_scoring import FactorwiseScoringStrategy
 
 from heating_planner.back.scoring.scaler import GeoPandasScalingStrategy

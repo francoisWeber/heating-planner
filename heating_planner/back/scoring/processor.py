@@ -2,7 +2,8 @@ from typing import Dict
 import numpy as np
 import geopandas as gpd
 
-from heating_planner.back.data.base import HazardDataset, Factor, FactorTrend
+from heating_planner.back.data.base import HazardDataset
+from heating_planner.back.data.model.factor import Factor, FactorTrend
 from heating_planner.back.streamlit_enums import StreamlitReadyEnum
 from heating_planner.back.scoring.scaler import GeoPandasScalingStrategy
 
