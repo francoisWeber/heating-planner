@@ -6,6 +6,8 @@ from geopy.location import Location
 import pickle as pkl
 from enum import StrEnum
 
+from loguru import logger
+
 NOMINATIM_AGENT = "fweber"
 GEOCODE_TIMEOUT = 5
 CACHE_DIR = Path(osp.expanduser("~/.heating_planner"))
@@ -46,9 +48,12 @@ class CachedNominatim(Nominatim):
         for file in CACHE_DIR.iterdir():
             if file.suffix != ".pkl":
                 continue
-            with open(file, "rb") as f:
-                operation, query, obtained_location = pkl.load(f)
-            self.cache[operation][query] = obtained_location
+            try:
+                with open(file, "rb") as f:
+                    operation, query, obtained_location = pkl.load(f)
+                self.cache[operation][query] = obtained_location
+            except EOFError:
+                logger.warning(f"{file} corrupted")
 
     def _to_cache_fname(self, operation: GeoCodingOperation, query: Any) -> str:
         _id = hex(hash((operation, query)))

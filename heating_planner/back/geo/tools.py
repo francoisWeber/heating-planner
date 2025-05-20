@@ -6,6 +6,10 @@ DEFAULT_SCORE_COLNAME = "score"
 DEFAULT_SURROUNDING_MAX_DISTANCE = 16_000
 
 
+def make_geo_df(df: pd.DataFrame, geometry: gpd.GeoSeries) -> gpd.GeoDataFrame:
+    return gpd.GeoDataFrame(pd.concat([geometry, df], axis=1), geometry="geometry")
+
+
 def get_topn_with_surroundings(
     gdf: gpd.GeoDataFrame,
     n: int,
