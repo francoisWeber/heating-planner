@@ -1,5 +1,3 @@
-import json
-import os
 from io import StringIO
 from typing import Dict
 
@@ -7,31 +5,30 @@ import geopandas as gpd
 import pandas as pd
 from loguru import logger
 
-from heating_planner.back.data.base import HazardDataset, METRIC_CRS
-from heating_planner.back.data.model.factor import Factor, FactorTrend, FactorType
+from heating_planner.back.data.base import METRIC_CRS, HazardDataset
+from heating_planner.back.data.model.factor import (Factor, FactorTrend,
+                                                    FactorType)
 
 # Hardcoded trend preferences based on variable meanings
 DRIAS_TREND_PREFERENCES = {
     # Temperature variables
-    "nortmm_yr": FactorTrend.LOWER_BETTER,       # Annual average temperature
-    "nortmm_seas_jja": FactorTrend.LOWER_BETTER, # Summer average temperature
-    "nortmm_seas_djf": FactorTrend.HIGHER_BETTER, # Winter average temperature
-    "nortxm_seas_jja": FactorTrend.LOWER_BETTER, # Summer maximum temperature
-    "nortx35d_yr": FactorTrend.LOWER_BETTER,     # Number of days with Tx >= 35°C
-    "nortx30d_yr": FactorTrend.LOWER_BETTER,     # Number of days with Tx >= 30°C
-    "nortr_yr": FactorTrend.LOWER_BETTER,        # Number of tropical nights
-    
+    "nortmm_yr": FactorTrend.LOWER_BETTER,  # Annual average temperature
+    "nortmm_seas_jja": FactorTrend.LOWER_BETTER,  # Summer average temperature
+    "nortmm_seas_djf": FactorTrend.HIGHER_BETTER,  # Winter average temperature
+    "nortxm_seas_jja": FactorTrend.LOWER_BETTER,  # Summer maximum temperature
+    "nortx35d_yr": FactorTrend.LOWER_BETTER,  # Number of days with Tx >= 35°C
+    "nortx30d_yr": FactorTrend.LOWER_BETTER,  # Number of days with Tx >= 30°C
+    "nortr_yr": FactorTrend.LOWER_BETTER,  # Number of tropical nights
     # Precipitation variables
-    "norrr_yr": FactorTrend.LOWER_BETTER,        # Annual precipitation
-    "norrr_seas_jja": FactorTrend.HIGHER_BETTER, # Summer precipitation
-    "norrr_seas_djf": FactorTrend.HIGHER_BETTER, # Winter precipitation
-    "norrrq99_yr": FactorTrend.LOWER_BETTER,     # Remarkable daily precipitation (99th percentile)
-    "norrx1d_yr": FactorTrend.LOWER_BETTER,      # Extreme precipitation intensity
-    "norrrq99refd_yr": FactorTrend.LOWER_BETTER, # Frequency of remarkable daily precipitation
-    
+    "norrr_yr": FactorTrend.LOWER_BETTER,  # Annual precipitation
+    "norrr_seas_jja": FactorTrend.HIGHER_BETTER,  # Summer precipitation
+    "norrr_seas_djf": FactorTrend.HIGHER_BETTER,  # Winter precipitation
+    "norrrq99_yr": FactorTrend.LOWER_BETTER,  # Remarkable daily precipitation (99th percentile)
+    "norrx1d_yr": FactorTrend.LOWER_BETTER,  # Extreme precipitation intensity
+    "norrrq99refd_yr": FactorTrend.LOWER_BETTER,  # Frequency of remarkable daily precipitation
     # Other indices
-    "norifm40_yr": FactorTrend.LOWER_BETTER,     # Fire weather indicator (days > 40)
-    "norswi04_yr": FactorTrend.LOWER_BETTER,     # Number of days with SWI < 0.4 (soil dryness)
+    "norifm40_yr": FactorTrend.LOWER_BETTER,  # Fire weather indicator (days > 40)
+    "norswi04_yr": FactorTrend.LOWER_BETTER,  # Number of days with SWI < 0.4 (soil dryness)
 }
 
 DRIAS_EXPORT_SECTION_MODEL = 1
