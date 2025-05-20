@@ -122,4 +122,5 @@ class DriasDataset(HazardDataset):
         df = pd.read_csv(data, sep=";").dropna(axis=0, subset="Contexte").dropna(axis=1, how="all").rename(columns=normalize_colname)
         df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs="EPSG:4326")
         df = df.to_crs(METRIC_CRS)
+        df = df.drop(columns=["longitude", "latitude", "point", "contexte"])
         return df

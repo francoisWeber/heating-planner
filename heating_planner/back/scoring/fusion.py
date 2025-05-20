@@ -11,7 +11,7 @@ from heating_planner.back.streamlit_enums import StreamlitReadyEnum
 
 class ScoringFusion(StreamlitReadyEnum):
     WEIGHTED_MEAN = "weighted mean of each factor's score"
-    RRF = "reciprocal rank fusion from each factor's rank"
+    # RRF = "reciprocal rank fusion from each factor's rank"
 
     def __call__(self, scores: HazardDataset, coefs: Dict[Factor, float]) -> HazardDataset:
         gdf = scores.df[["geometry"]].copy()

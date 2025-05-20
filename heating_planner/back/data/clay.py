@@ -7,7 +7,7 @@ from heating_planner.back.data.model.factor import (Factor, FactorTrend,
 FACTOR_NAME = "clay_hazard"
 FACTOR_DEF = "Niveau de risque de retrait-gonflement des argiles (3 niveaux)"
 FACTOR_TREND = FactorTrend.LOWER_BETTER
-FACTOR_TYPE = FactorType.DISCRETE
+FACTOR_TYPE = FactorType.CONTINUOUS
 FACTOR_UNIT = "3-level"
 
 MODEL = "georisques"

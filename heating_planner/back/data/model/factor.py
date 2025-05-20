@@ -18,7 +18,6 @@ class FactorTrend(StrEnum):
 
 class FactorType(StrEnum):
     CONTINUOUS = "continuous"
-    DISCRETE = "discrete"
     BINARY = "binary"
 
 

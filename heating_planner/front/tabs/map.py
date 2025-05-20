@@ -19,15 +19,13 @@ FACTOR_WEIGHTS_NCOLS = 3
 
 class OptionsDisplayer:
     def __init__(self):
-        self.scores_col, self.fusion_col, self.display_col = st.columns(3)
+        self.scores_col, self.scaling_col, self.display_col = st.columns(3)
         with self.scores_col:
             st.subheader("Factorwise scoring strategy")
-            self.scoring_strat, self.scaling_strat = st.columns([2, 1])
-        with self.fusion_col:
+        with self.scaling_col:
             st.subheader("Factor's scores fusion")
         with self.display_col:
             st.subheader("Display mode")
-            self.subparams_cols = st.columns([1, 1])
 
     def display(self):
         factors_scoring_strategy = self.display_factors_scoring_strategy()
@@ -37,22 +35,20 @@ class OptionsDisplayer:
         return factors_scoring_strategy, factors_scaling, fusion_strategy, contrast
 
     def display_factors_scoring_strategy(self):
-        with self.scoring_strat:
+        with self.scores_col:
             factors_scoring_strategy = st.radio("scoring method", FactorsScoringStrategy.get_options(), index=0, key="scoring_method")
         return factors_scoring_strategy
 
     def display_factors_scaling(self):
-        with self.scaling_strat:
+        with self.scaling_col:
             factors_scaling = st.radio("factors score scaling", ScoreScalingStrategy.get_options())
         return factors_scaling
 
     def display_fusion_strategy(self):
-        with self.fusion_col:
-            fusion_strategy = st.radio("fusion method", ScoringFusion.get_options(), index=0, key="fusion_method")
-        return fusion_strategy
+        return ScoringFusion.WEIGHTED_MEAN
 
     def display_contrast(self):
-        with self.subparams_cols[1]:
+        with self.display_col:
             contrast = st.radio("contrast management", options=Contrast.get_options(), index=1)
         return contrast
 
