@@ -1,12 +1,11 @@
 from typing import Dict, List, Tuple
 
 import geopandas as gpd
-from loguru import logger
 import numpy as np
+from loguru import logger
 
 from heating_planner.back.data.base import HazardDataset
-from heating_planner.back.data.model.factor import (Factor, FactorTrend,
-                                                    FactorType)
+from heating_planner.back.data.model.factor import Factor, FactorTrend, FactorType
 from heating_planner.back.geo.tools import make_geo_df
 from heating_planner.back.streamlit_enums import StreamlitReadyEnum
 
@@ -45,21 +44,22 @@ class FactorsScoringStrategy(StreamlitReadyEnum):
 
     def __call__(
         self,
-        dataset: HazardDataset,
-        dataset_historical: HazardDataset,
+        dataset_proj: HazardDataset,
+        dataset_hist: HazardDataset,
         optimal_ranges: Dict[str, List[float]],
     ) -> HazardDataset:
-        
         if self is FactorsScoringStrategy.BY_FACTOR_TREND:
-            scores, new_factors = FactorsScoringStrategy._by_trend(dataset.df, dataset.factors)
+            scores, new_factors = FactorsScoringStrategy._by_trend(dataset_proj.df, dataset_proj.factors)
         elif self is FactorsScoringStrategy.BY_HISTORICAL_VALUES:
-            scores, new_factors = FactorsScoringStrategy._by_historical_value(dataset_historical, dataset)
+            scores, new_factors = FactorsScoringStrategy._by_historical_value(dataset_hist, dataset_proj)
         elif self is FactorsScoringStrategy.BY_OPTIMAL_RANGE:
-            scores, new_factors = FactorsScoringStrategy._by_optimal_range_discrepancy(dataset.df, dataset.factors, optimal_ranges)
+            scores, new_factors = FactorsScoringStrategy._by_optimal_range_discrepancy(
+                dataset_proj.df, dataset_proj.factors, optimal_ranges
+            )
         elif self is FactorsScoringStrategy.BY_REFERENCE_VALUE:
             raise NotImplementedError("single point ref scoring not implemented yet")
         elif self is FactorsScoringStrategy.RAW_VALUES:
-            return dataset
+            return dataset_proj
         else:
             raise ValueError()
 
@@ -72,7 +72,7 @@ class FactorsScoringStrategy(StreamlitReadyEnum):
         new_factors = []
         for factor in factors:
             if factor.type == FactorType.BINARY:  # skip binary factors
-                scores[factor.name] = df[factor.name]
+                continue
             if factor.trend == FactorTrend.LOWER_BETTER:
                 scores[factor.name] = -1.0 * df[factor.name]
             elif factor.trend == FactorTrend.HIGHER_BETTER:
@@ -92,7 +92,7 @@ class FactorsScoringStrategy(StreamlitReadyEnum):
         scores = df[["geometry"]].copy()
         new_factors = []
         for factor in factors:
-            if factor.name not in optimal_ranges:
+            if factor.name not in optimal_ranges or factor.is_binary():
                 continue
             low_up_bounds = optimal_ranges[factor.name]
             if factor.trend == FactorTrend.LOWER_BETTER:
@@ -101,8 +101,6 @@ class FactorsScoringStrategy(StreamlitReadyEnum):
                 scores[factor.name] = higher_better_score(df[factor.name], *low_up_bounds)
             if factor.trend == FactorTrend.NEUTRAL:
                 scores[factor.name] = neutral_score(df[factor.name], *low_up_bounds)
-            if factor.is_binary():
-                scores[factor.name] = df[factor.name]
             score_factor = factor.copy()
             score_factor.trend = FactorTrend.HIGHER_BETTER
             new_factors.append(score_factor)
@@ -113,27 +111,25 @@ class FactorsScoringStrategy(StreamlitReadyEnum):
     def _by_historical_value(ds_hist: HazardDataset, ds_proj: HazardDataset) -> Tuple[gpd.GeoDataFrame, List[Factor]]:
         common_factors = sorted(list(set(ds_hist.factors).intersection(set(ds_proj.factors))))
         common_factors_continuous = [f for f in common_factors if f.is_continuous()]
-        
+
         df_hist = ds_hist.df[[f.name for f in common_factors_continuous]]
         df_proj = ds_proj.df[[f.name for f in common_factors_continuous]]
-        
+
         stability_per_factor = df_hist.apply(lambda x: np.nanmin(np.where(x.to_numpy() > 0, x.to_numpy(), np.nan)) / 10)
-        
+
         relative_evolution = (df_proj - df_hist) / (df_hist + stability_per_factor)
 
         new_factors = []
         for factor in common_factors:
             if factor.is_binary():
-                relative_evolution[factor.name] = np.logical_not(ds_hist.df[factor.name])
-                new_factors.append(factor)
                 continue
             if factor.trend == FactorTrend.LOWER_BETTER:
                 relative_evolution[factor.name] = -relative_evolution[factor.name]
-                
+
             score_factor = factor.copy()
             score_factor.trend = FactorTrend.HIGHER_BETTER
             new_factors.append(score_factor)
-            
+
         relative_evolution = make_geo_df(relative_evolution, ds_hist.df["geometry"])
 
         return relative_evolution, new_factors

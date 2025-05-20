@@ -1,5 +1,7 @@
+
 *.ipynb
 heating_planner_vibe/
+heating_planner_vib/
 # specific to project
 custom_converter
 env-init.sh

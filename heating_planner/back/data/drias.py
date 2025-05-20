@@ -6,8 +6,7 @@ import pandas as pd
 from loguru import logger
 
 from heating_planner.back.data.base import METRIC_CRS, HazardDataset
-from heating_planner.back.data.model.factor import (Factor, FactorTrend,
-                                                    FactorType)
+from heating_planner.back.data.model.factor import Factor, FactorTrend, FactorType
 
 # Hardcoded trend preferences based on variable meanings
 DRIAS_TREND_PREFERENCES = {

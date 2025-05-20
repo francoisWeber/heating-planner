@@ -2,8 +2,7 @@ from typing import List
 
 import streamlit as st
 
-from heating_planner.back.data import (ClayHazardDataset, DriasDataset,
-                                       SeaElevationDataset)
+from heating_planner.back.data import ClayHazardDataset, DriasDataset, SeaElevationDataset
 from heating_planner.back.data.base import HazardDataset
 from heating_planner.back.streamlit_enums import StreamlitReadyEnum
 from heating_planner.front.loading import load_and_cache_dataset

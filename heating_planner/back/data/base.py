@@ -1,7 +1,7 @@
 import os
 import tempfile
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Tuple
+from typing import Dict, List, Tuple
 from urllib.parse import urlparse
 
 import geopandas as gpd
@@ -10,8 +10,9 @@ import requests
 from loguru import logger
 from shapely.geometry import Point
 
-from heating_planner.back.data.model.factor import Factor, FactorType
+from heating_planner.back.data.model.factor import Factor
 from heating_planner.back.geo.coder import geocoding
+from heating_planner.back.geo.tools import make_geo_df
 from heating_planner.crs import METRIC_CRS
 
 SJOIN_MAX_DISTANCE_M = 8_000  # meters
@@ -131,5 +132,19 @@ class HazardDataset:
         metadata = (self.path, self.model, self.scenario)
         df = self.df
         factors = self.factors
-        geometry = df.pop("geometry").to_frame("geometry")
-        return df, geometry, factors, metadata
+        ddf = df.copy()
+        geometry = ddf.pop("geometry").to_frame("geometry")
+        return ddf, geometry, factors, metadata
+
+    def split_by_factor_type(self) -> Tuple["HazardDataset", "HazardDataset"]:
+        df, geometry, factors, _ = self.explode_information()
+
+        factors_binary = [factor for factor in factors if factor.is_binary()]
+        factors_continuous = [factor for factor in factors if factor.is_continuous()]
+
+        df_binary = df[[factor.name for factor in factors_binary]]
+        df_continuous = df[[factor.name for factor in factors_continuous]]
+
+        ds_binary = HazardDataset(df=make_geo_df(df_binary, geometry), factors=factors_binary)
+        ds_continous = HazardDataset(df=make_geo_df(df_continuous, geometry), factors=factors_continuous)
+        return ds_binary, ds_continous

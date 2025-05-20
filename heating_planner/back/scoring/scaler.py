@@ -1,11 +1,8 @@
-from typing import List
-
 import geopandas as gpd
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 from heating_planner.back.data.base import HazardDataset
-from heating_planner.back.data.model.factor import Factor
 from heating_planner.back.streamlit_enums import StreamlitReadyEnum
 
 

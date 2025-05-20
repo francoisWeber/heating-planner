@@ -4,10 +4,9 @@ from matplotlib import pyplot as plt
 from heating_planner.back.data.base import HazardDataset
 from heating_planner.back.geo.coder import geocoding
 from heating_planner.back.geo.tools import get_topn_with_surroundings
-from heating_planner.back.scoring.factorwise_scoring import \
-    FactorsScoringStrategy
+from heating_planner.back.scoring.factorwise_scoring import FactorsScoringStrategy
 from heating_planner.back.scoring.fusion import ScoringFusion
-from heating_planner.back.scoring.processor import Contrast, process_score
+from heating_planner.back.scoring.processor import Contrast, apply_binary_masks, process_score
 from heating_planner.back.scoring.scaler import ScoreScalingStrategy
 from heating_planner.crs import GPS_CRS
 
@@ -59,28 +58,27 @@ def display():
         st.warning("Please load the files first")
         st.button("retry")
     else:
-        dataset_proj: HazardDataset = st.session_state.dataset_proj
-        dataset_hist: HazardDataset = st.session_state.dataset_ref
+        ds_proj: HazardDataset = st.session_state.dataset_proj
+        ds_hist: HazardDataset = st.session_state.dataset_ref
+
+        _, ds_proj_continuous = ds_proj.split_by_factor_type()
+        ds_hist_binary, ds_hist_continuous = ds_hist.split_by_factor_type()
 
         options_displayer = OptionsDisplayer()
         factor_scoring_strategy, factors_scaling, fusion_strategy, contrast = options_displayer.display()
 
-        ds_scored_factors = factor_scoring_strategy(dataset_proj, dataset_hist, st.session_state.reference_ranges)
+        ds_scored_factors = factor_scoring_strategy(ds_proj_continuous, ds_hist_continuous, st.session_state.reference_ranges)
         ds_scaled_scored_factors = factors_scaling(ds_scored_factors)
 
         map_and_factors_cols = st.columns(2)
         with map_and_factors_cols[1]:
             with st.container(border=True):
-                binary_factors = [factor for factor in ds_scored_factors.factors if factor.is_binary()]
-                # display boolean keys
-                factors_cols = st.columns(FACTOR_WEIGHTS_NCOLS)
                 binary_factor_infos = {}
-                for i, factor in enumerate(binary_factors):
-                    with factors_cols[i % 2]:
-                        binary_factor_infos[factor] = st.toggle("With: " + factor.description, value=True)
+                for i, factor in enumerate(ds_hist_binary.factors):
+                    binary_factor_infos[factor] = st.toggle("With: " + factor.description, value=True)
 
-                st.markdown("Coefficients for numeric factors")
                 weightable_factors = [factor for factor in ds_scored_factors.factors if not factor.is_binary()]
+                factors_cols = st.columns(FACTOR_WEIGHTS_NCOLS)
                 with st.form("weight-form"):
                     # display weightable factors
                     coefs = {factor: 1 for factor in weightable_factors}
@@ -95,17 +93,18 @@ def display():
         with map_and_factors_cols[0]:
             score = fusion_strategy(ds_scaled_scored_factors, coefs)
             # Display only rows where score is not a float
-            hazard_map = process_score(score, contrast=contrast, binary_factor_infos=binary_factor_infos)
+            processed_scores = process_score(score, contrast=contrast)
+            processed_scores = apply_binary_masks(processed_scores, binary_factor_infos, ds_hist_binary)
             fig, ax = plt.subplots()
-            hazard_map.plot("score", ax=ax, legend=True, cmap="RdYlGn", markersize=MARKER_SIZE)
+            processed_scores.plot("score", ax=ax, legend=True, cmap="RdYlGn", markersize=MARKER_SIZE)
             st.pyplot(fig)
-            st.download_button("Download GeoDF", hazard_map.to_json(), "heating_map_scores.json")
+            st.download_button("Download GeoDF", processed_scores.to_json(), "heating_map_scores.json")
 
     with st.container(border=True):
         cols = st.columns(2)
         with cols[0]:
             st.subheader("Top 10 points")
-            top_rows = get_topn_with_surroundings(hazard_map, n=10, score_colname="score").to_crs(GPS_CRS)
+            top_rows = get_topn_with_surroundings(processed_scores, n=10, score_colname="score").to_crs(GPS_CRS)
             geometries = top_rows.geometry.to_list()
             coords = [tuple(coord[0] for coord in geo.coords.xy[::-1]) for geo in geometries]
             locations = [geocoding.reverse(coord) for coord in coords]
