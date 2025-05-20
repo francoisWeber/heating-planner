@@ -50,3 +50,7 @@ class Factor:
 
     def __le__(self, other):
         return self.name <= other.name
+
+    def copy(self):
+        """Create a copy of the Factor instance."""
+        return Factor(name=self.name, description=self.description, trend=self.trend, type=self.type, unit=self.unit)

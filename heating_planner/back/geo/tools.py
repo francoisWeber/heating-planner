@@ -1,5 +1,6 @@
 import geopandas as gpd
 import pandas as pd
+
 from heating_planner.crs import METRIC_CRS
 
 DEFAULT_SCORE_COLNAME = "score"

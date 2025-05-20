@@ -1,16 +1,17 @@
-from dataclasses import dataclass
-from typing import Dict, List
-from loguru import logger
-import geopandas as gpd
-import pandas as pd
-from shapely.geometry import Point
 import os
 import tempfile
+from dataclasses import dataclass
+from typing import Callable, Dict, List, Tuple
 from urllib.parse import urlparse
-import requests
 
-from heating_planner.back.geo.coder import geocoding
+import geopandas as gpd
+import pandas as pd
+import requests
+from loguru import logger
+from shapely.geometry import Point
+
 from heating_planner.back.data.model.factor import Factor, FactorType
+from heating_planner.back.geo.coder import geocoding
 from heating_planner.crs import METRIC_CRS
 
 SJOIN_MAX_DISTANCE_M = 8_000  # meters
@@ -39,13 +40,13 @@ class HazardDataset:
         """
         Resolves a local path or HTTP/HTTPS URL to a local file path.
         Downloads the file if necessary and returns the local path.
-        
+
         Args:
             path: A local file path or URL
-            
+
         Returns:
             A local file path that can be used to load the data
-            
+
         Raises:
             FileNotFoundError: If the local file doesn't exist
             ValueError: If the URL scheme is not supported
@@ -62,22 +63,22 @@ class HazardDataset:
                 suffix = os.path.splitext(parsed.path)[-1]
                 if not suffix:
                     # If no file extension in URL, try to determine from content type
-                    content_type = r.headers.get('content-type', '')
-                    if 'text/plain' in content_type:
-                        suffix = '.txt'
-                    elif 'application/json' in content_type:
-                        suffix = '.json'
-                    elif 'application/zip' in content_type:
-                        suffix = '.zip'
-                    elif 'application/octet-stream' in content_type:
+                    content_type = r.headers.get("content-type", "")
+                    if "text/plain" in content_type:
+                        suffix = ".txt"
+                    elif "application/json" in content_type:
+                        suffix = ".json"
+                    elif "application/zip" in content_type:
+                        suffix = ".zip"
+                    elif "application/octet-stream" in content_type:
                         # Try to determine format from content-disposition if available
-                        content_disp = r.headers.get('content-disposition', '')
-                        if 'filename=' in content_disp:
-                            filename = content_disp.split('filename=')[-1].strip('"\'')
+                        content_disp = r.headers.get("content-disposition", "")
+                        if "filename=" in content_disp:
+                            filename = content_disp.split("filename=")[-1].strip("\"'")
                             suffix = os.path.splitext(filename)[-1]
                         else:
                             # Default to .dat for unknown binary content
-                            suffix = '.dat'
+                            suffix = ".dat"
                 with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as f:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)
@@ -93,7 +94,7 @@ class HazardDataset:
 
         else:
             raise ValueError(f"Unsupported path scheme: {scheme}")
-            
+
     @classmethod
     def load_from_path(cls, path: str):
         """Load dataset from path"""
@@ -126,31 +127,9 @@ class HazardDataset:
         else:
             return self.__add__(other)
 
-
-@dataclass
-class MappableFactors:
-    continuous: List[Factor] | None = None
-    discretes: List[Factor] | None = None
-    binaries: List[Factor] | None = None
-
-    @classmethod
-    def from_hazard_datasets(cls, dataset1: HazardDataset, dataset2: HazardDataset):
-        common_factors = list(set(dataset1.factors).intersection(set(dataset2.factors)))
-        binaries: List[Factor] = []
-        continuous: List[Factor] = []
-        discretes: List[Factor] = []
-        for factor in common_factors:
-            if factor.type == FactorType.BINARY:
-                binaries.append(factor)
-            elif factor.type == FactorType.CONTINUOUS:
-                continuous.append(factor)
-            elif factor.type == FactorType.DISCRETE:
-                discretes.append(factor)
-            else:
-                raise ValueError(f"Unknown type for {factor=}")
-
-        return cls(continuous=continuous, discretes=discretes, binaries=binaries)
-
-    @property
-    def weightables(self):
-        return self.continuous + self.discretes
+    def explode_information(self) -> Tuple[pd.DataFrame, gpd.GeoDataFrame, List[Factor], Tuple[str, str, str]]:
+        metadata = (self.path, self.model, self.scenario)
+        df = self.df
+        factors = self.factors
+        geometry = df.pop("geometry").to_frame("geometry")
+        return df, geometry, factors, metadata

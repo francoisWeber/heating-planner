@@ -1,7 +1,7 @@
 import streamlit as st
 
-from heating_planner.back.data.drias import DriasDataset
 from heating_planner.back.data.base import HazardDataset
+from heating_planner.back.data.drias import DriasDataset
 
 
 @st.cache_data

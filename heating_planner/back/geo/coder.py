@@ -1,11 +1,11 @@
+import pickle as pkl
+from enum import StrEnum
 from os import path as osp
 from pathlib import Path
 from typing import Any
+
 from geopy.geocoders import Nominatim
 from geopy.location import Location
-import pickle as pkl
-from enum import StrEnum
-
 from loguru import logger
 
 NOMINATIM_AGENT = "fweber"

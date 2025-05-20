@@ -1,19 +1,60 @@
 import streamlit as st
 from matplotlib import pyplot as plt
 
-from heating_planner.back.data.base import HazardDataset, MappableFactors
-from heating_planner.back.scoring.factorwise_scoring import FactorwiseScoringStrategy
-from heating_planner.back.scoring.fusion import ScoringFusion
-from heating_planner.back.scoring.processor import process_score, Contrast
-from heating_planner.back.scoring.scaler import GeoPandasScalingStrategy
+from heating_planner.back.data.base import HazardDataset
 from heating_planner.back.geo.coder import geocoding
 from heating_planner.back.geo.tools import get_topn_with_surroundings
+from heating_planner.back.scoring.factorwise_scoring import \
+    FactorsScoringStrategy
+from heating_planner.back.scoring.fusion import ScoringFusion
+from heating_planner.back.scoring.processor import Contrast, process_score
+from heating_planner.back.scoring.scaler import ScoreScalingStrategy
 from heating_planner.crs import GPS_CRS
 
 PARAMS_INIT = {}
 MARKER_SIZE = 2.0
 
 FACTOR_WEIGHTS_NCOLS = 3
+
+
+class OptionsDisplayer:
+    def __init__(self):
+        self.scores_col, self.fusion_col, self.display_col = st.columns(3)
+        with self.scores_col:
+            st.subheader("Factorwise scoring strategy")
+            self.scoring_strat, self.scaling_strat = st.columns([2, 1])
+        with self.fusion_col:
+            st.subheader("Factor's scores fusion")
+        with self.display_col:
+            st.subheader("Display mode")
+            self.subparams_cols = st.columns([1, 1])
+
+    def display(self):
+        factors_scoring_strategy = self.display_factors_scoring_strategy()
+        factors_scaling = self.display_factors_scaling()
+        fusion_strategy = self.display_fusion_strategy()
+        contrast = self.display_contrast()
+        return factors_scoring_strategy, factors_scaling, fusion_strategy, contrast
+
+    def display_factors_scoring_strategy(self):
+        with self.scoring_strat:
+            factors_scoring_strategy = st.radio("scoring method", FactorsScoringStrategy.get_options(), index=0, key="scoring_method")
+        return factors_scoring_strategy
+
+    def display_factors_scaling(self):
+        with self.scaling_strat:
+            factors_scaling = st.radio("factors score scaling", ScoreScalingStrategy.get_options())
+        return factors_scaling
+
+    def display_fusion_strategy(self):
+        with self.fusion_col:
+            fusion_strategy = st.radio("fusion method", ScoringFusion.get_options(), index=0, key="fusion_method")
+        return fusion_strategy
+
+    def display_contrast(self):
+        with self.subparams_cols[1]:
+            contrast = st.radio("contrast management", options=Contrast.get_options(), index=1)
+        return contrast
 
 
 @st.fragment
@@ -25,51 +66,29 @@ def display():
         dataset_proj: HazardDataset = st.session_state.dataset_proj
         dataset_hist: HazardDataset = st.session_state.dataset_ref
 
-        param_cols = st.columns(3)
-        with st.container(border=True):
-            with param_cols[0]:
-                with st.container(border=True):
-                    st.subheader("Individual factor scoring")
-                    subparams_cols = st.columns([2, 1])
-                    with subparams_cols[0]:
-                        factor_scoring_strategy = st.radio(
-                            "scoring method", FactorwiseScoringStrategy.get_available_options(), index=0, key="scoring_method"
-                        )
-                    with subparams_cols[1]:
-                        factors_scaling = st.radio("factors score scaling", GeoPandasScalingStrategy.get_available_options())
-            with param_cols[1]:
-                with st.container(border=True):
-                    st.subheader("Factor's scores fusion")
-                    fusion_strategy = st.radio("fusion method", ScoringFusion.get_available_options(), index=0, key="fusion_method")
-            with param_cols[2]:
-                with st.container(border=True):
-                    st.subheader("Display mode")
-                    subparams_cols = st.columns([1, 1])
-                    with subparams_cols[0]:
-                        score_scaling_strategy = st.radio(
-                            "scale method", GeoPandasScalingStrategy.get_available_options(), index=0, key="scaling"
-                        )
-                    with subparams_cols[1]:
-                        contrast = st.radio("contrast management", options=Contrast.get_available_options(), index=1)
+        options_displayer = OptionsDisplayer()
+        factor_scoring_strategy, factors_scaling, fusion_strategy, contrast = options_displayer.display()
 
-        mappable_factors = MappableFactors.from_hazard_datasets(dataset_hist, dataset_proj)
+        ds_scored_factors = factor_scoring_strategy(dataset_proj, dataset_hist, st.session_state.reference_ranges)
+        ds_scaled_scored_factors = factors_scaling(ds_scored_factors)
 
         map_and_factors_cols = st.columns(2)
         with map_and_factors_cols[1]:
             with st.container(border=True):
+                binary_factors = [factor for factor in ds_scored_factors.factors if factor.is_binary()]
                 # display boolean keys
                 factors_cols = st.columns(FACTOR_WEIGHTS_NCOLS)
                 binary_factor_infos = {}
-                for i, factor in enumerate(mappable_factors.binaries):
+                for i, factor in enumerate(binary_factors):
                     with factors_cols[i % 2]:
                         binary_factor_infos[factor] = st.toggle("With: " + factor.description, value=True)
 
                 st.markdown("Coefficients for numeric factors")
-
+                weightable_factors = [factor for factor in ds_scored_factors.factors if not factor.is_binary()]
                 with st.form("weight-form"):
                     # display weightable factors
-                    coefs = {factor: 1 for factor in mappable_factors.weightables}
-                    for i, factor in enumerate(mappable_factors.weightables):
+                    coefs = {factor: 1 for factor in weightable_factors}
+                    for i, factor in enumerate(weightable_factors):
                         if i % FACTOR_WEIGHTS_NCOLS == 0:
                             factors_cols = st.columns(FACTOR_WEIGHTS_NCOLS)
 
@@ -78,17 +97,13 @@ def display():
                     st.form_submit_button("update")
 
         with map_and_factors_cols[0]:
-            with st.spinner("Computing score ..."):
-                scores = factor_scoring_strategy(dataset_proj, dataset_hist, st.session_state.reference_ranges, scaling=factors_scaling)
-                score = fusion_strategy(scores, coefs)
-                hazard_map = process_score(
-                    dataset_proj, score, contrast=contrast, scaling_strategy=score_scaling_strategy, binary_factor_infos=binary_factor_infos
-                )
-            with st.spinner("Creating map ..."):
-                fig, ax = plt.subplots()
-                hazard_map.plot("score", ax=ax, legend=True, cmap="RdYlGn", markersize=MARKER_SIZE)
-                st.pyplot(fig)
-                st.download_button("Download GeoDF", hazard_map.to_json(), "heating_map_scores.json")
+            score = fusion_strategy(ds_scaled_scored_factors, coefs)
+            # Display only rows where score is not a float
+            hazard_map = process_score(score, contrast=contrast, binary_factor_infos=binary_factor_infos)
+            fig, ax = plt.subplots()
+            hazard_map.plot("score", ax=ax, legend=True, cmap="RdYlGn", markersize=MARKER_SIZE)
+            st.pyplot(fig)
+            st.download_button("Download GeoDF", hazard_map.to_json(), "heating_map_scores.json")
 
     with st.container(border=True):
         cols = st.columns(2)

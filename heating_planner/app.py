@@ -1,7 +1,9 @@
 import streamlit as st
 import streamlit_authenticator as stauth
 import yaml
-from heating_planner.front.tabs import map, parameters, reference_definition, raw_data
+
+from heating_planner.front.tabs import (map, parameters, raw_data,
+                                        reference_definition)
 
 st.set_page_config(layout="wide", page_title="Heating Planner", page_icon="🌍")
 

@@ -1,28 +1,25 @@
-from matplotlib import pyplot as plt
 import streamlit as st
+from matplotlib import pyplot as plt
+
 from heating_planner.back.data.base import HazardDataset
 from heating_planner.back.data.model.factor import FactorTrend
-from heating_planner.back.scoring.factorwise_scoring import FactorwiseScoringStrategy
-
-from heating_planner.back.scoring.scaler import GeoPandasScalingStrategy
-
+from heating_planner.back.scoring.factorwise_scoring import \
+    FactorsScoringStrategy
 
 N_COLS = 4
 
 
+@st.fragment
 def display():
     ds_proj: HazardDataset = st.session_state.dataset_proj
     ds_ref: HazardDataset = st.session_state.dataset_ref
 
-    factor_scoring_strategy = st.radio(
-        "Values to display", FactorwiseScoringStrategy.get_available_options(), index=0, key="scoring_method_raw_data"
-    )
+    factor_scoring_strategy = st.radio("Values to display", FactorsScoringStrategy.get_options(), index=0, key="scoring_method_raw_data")
 
-    scores: HazardDataset = factor_scoring_strategy.get_score_as_hazard_ds(
+    scores: HazardDataset = factor_scoring_strategy(
         dataset=ds_proj,
         dataset_historical=ds_ref,
         optimal_ranges=st.session_state.reference_ranges,
-        scaling=GeoPandasScalingStrategy.NONE,
     )
 
     for i, factor in enumerate(scores.factors):

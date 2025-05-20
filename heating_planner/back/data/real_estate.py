@@ -1,10 +1,11 @@
 from typing import List
+
 import geopandas as gpd
 import pandas as pd
 
-from heating_planner.back.data.base import HazardDataset, METRIC_CRS
-from heating_planner.back.data.model.factor import Factor, FactorTrend, FactorType
-
+from heating_planner.back.data.base import METRIC_CRS, HazardDataset
+from heating_planner.back.data.model.factor import (Factor, FactorTrend,
+                                                    FactorType)
 
 FACTOR_NAME = "real_estate_prices"
 FACTOR_DEF = "Prix moyen sur 2023/24 DVF"

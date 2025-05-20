@@ -1,8 +1,9 @@
 import geopandas as gpd
 from loguru import logger
 
-from heating_planner.back.data.base import HazardDataset, METRIC_CRS
-from heating_planner.back.data.model.factor import Factor, FactorTrend, FactorType
+from heating_planner.back.data.base import METRIC_CRS, HazardDataset
+from heating_planner.back.data.model.factor import (Factor, FactorTrend,
+                                                    FactorType)
 
 FACTOR_NAME = "sea_1m_sub"
 FACTOR_DESCR = "Zones innondées avec 1m d'élévation"

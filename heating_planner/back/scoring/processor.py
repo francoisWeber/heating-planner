@@ -1,11 +1,18 @@
 from typing import Dict
-import numpy as np
+
 import geopandas as gpd
+import numpy as np
+import pandas as pd
+import streamlit as st
+from loguru import logger
 
 from heating_planner.back.data.base import HazardDataset
-from heating_planner.back.data.model.factor import Factor, FactorTrend
+from heating_planner.back.data.model.factor import Factor
+from heating_planner.back.geo.tools import make_geo_df
+from heating_planner.back.scoring.scaler import ScoreScalingStrategy
 from heating_planner.back.streamlit_enums import StreamlitReadyEnum
-from heating_planner.back.scoring.scaler import GeoPandasScalingStrategy
+
+SCORE_COLNAME = "score"
 
 
 class Contrast(StreamlitReadyEnum):
@@ -13,38 +20,43 @@ class Contrast(StreamlitReadyEnum):
     LEAVE = "leave"
     INCREASE = "increase"
 
-    def __call__(self, df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    def call_on_df(self, df: pd.DataFrame) -> pd.DataFrame:
         contrast_factor = 1
         if self is Contrast.DECREASE:
             contrast_factor = 0.5
         if self is Contrast.INCREASE:
             contrast_factor = 2
 
-        df["score"] = np.power(df["score"].values, contrast_factor)
+        df[SCORE_COLNAME] = np.power(df[SCORE_COLNAME].values, contrast_factor)
 
         return df
 
 
+def combine_binary_masks(binary_dfs: pd.DataFrame) -> pd.DataFrame:
+    mask = np.prod(binary_dfs.to_numpy(dtype=int), axis=1)
+    return pd.DataFrame(mask, index=binary_dfs.index, columns=["mask"])
+
+
 def process_score(
     dataset: HazardDataset,
-    score: gpd.GeoDataFrame,
     contrast: Contrast,
-    scaling_strategy: GeoPandasScalingStrategy,
     binary_factor_infos: Dict[Factor, bool],
+    scaling_strategy: ScoreScalingStrategy = ScoreScalingStrategy.MINMAX,
 ) -> gpd.GeoDataFrame:
-    score = scaling_strategy(score)
-    score = contrast(score)
+    df, geometry, _, _ = dataset.explode_information()
+    assert SCORE_COLNAME in df, f"No column {SCORE_COLNAME} in data !"
 
-    for factor, is_active in binary_factor_infos.items():
-        if is_active:
-            penalty = dataset.df[["geometry", factor.name]]
-            score = gpd.overlay(score, penalty)
-            min_score = score.score.min()
-            if factor.trend == FactorTrend.LOWER_BETTER:
-                score.loc[score[factor.name], "score"] = min_score
-            else:
-                score.loc[np.logical_not(score[factor.name]), "score"] = min_score
+    final_df = scaling_strategy.call_on_df(df)
+    final_df = contrast.call_on_df(final_df)
+    final_df = make_geo_df(final_df, geometry=geometry)
 
-            score.drop(columns=[factor.name])
+    binary_factors = [factor.name for factor, active in binary_factor_infos.items() if active]
+    if binary_factors:
+        logger.info(f"Processing binary factors: {binary_factors}")
+        binary_dfs = df[binary_factors]
+        mask = combine_binary_masks(binary_dfs)
+        penalty = make_geo_df(mask, geometry)
+        final_df = gpd.overlay(final_df, penalty)
+        final_df[SCORE_COLNAME] = np.where(final_df["mask"], final_df[SCORE_COLNAME], 0)
 
-    return score
+    return final_df
