@@ -3,10 +3,12 @@ from typing import List
 import geopandas as gpd
 import pandas as pd
 
-from heating_planner.back.data.base import METRIC_CRS, HazardDataset
+from heating_planner.back.data.base import HazardDataset
 from heating_planner.back.data.model.factor import Factor, FactorTrend, FactorType
 
-FACTOR_NAME = "real_estate_prices"
+from heating_planner.crs import METRIC_CRS, GPS_CRS
+
+FACTOR_NAME = "estate_eur"
 FACTOR_DEF = "Prix moyen sur 2023/24 DVF"
 FACTOR_TREND = FactorTrend.LOWER_BETTER
 FACTOR_TYPE = FactorType.CONTINUOUS
@@ -44,19 +46,20 @@ class RealEstatePricesEuroPerM2(HazardDataset):
         df = df[df.type_local.isin(["Maison", "Appartement"])].reset_index(drop=True).dropna(axis=1, how="all")
         df = df[df.nature_mutation.isin(["Vente", "Vente en l'état futur d'achèvement"])].reset_index(drop=True)
         df = df[["latitude", "longitude", "surface_reelle_bati", "type_local", "nom_commune", "valeur_fonciere"]]
-        df["price_per_m2"] = df.valeur_fonciere / df.surface_reelle_bati
-        df = df[df.price_per_m2 < 1e4].reset_index(drop=True)
+        df[FACTOR_NAME] = df.valeur_fonciere / df.surface_reelle_bati
+        df = df[df[FACTOR_NAME] < 1e4].reset_index(drop=True)
+        return df
 
     @staticmethod
     def _merge_dvf_data_onto_ref_geometry(dvf_df: gpd.GeoDataFrame, ref_df: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         gdf = gpd.sjoin_nearest(ref_df.to_crs(METRIC_CRS), dvf_df.to_crs(METRIC_CRS), how="left", max_distance=SJOIN_MAX_DIST_AGG_DVF)
-        return gpd.GeoDataFrame(gdf.groupby("geometry").price_per_m2.mean().reset_index(), geometry="geometry").to_crs(
-            SJOIN_MAX_DIST_AGG_DVF
+        return gpd.GeoDataFrame(gdf.groupby("geometry")[FACTOR_NAME].mean().reset_index(), geometry="geometry").to_crs(
+            METRIC_CRS
         )
 
     @staticmethod
     def _convert_dvf_to_gdf(df: pd.DataFrame) -> gpd.GeoDataFrame:
-        return gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs="EPSG:4326").drop(
+        return gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs=GPS_CRS).drop(
             columns=["longitude", "latitude"]
         )
 
