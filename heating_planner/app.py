@@ -23,7 +23,11 @@ name, logged_status, username = authenticator.login("Login id/creds")
 if logged_status:
     tabs = st.tabs(["Map", "Params", "Reference definition", "raw data"])
 
-    PARAMS_INIT = {**parameters.PARAMS_INIT, **reference_definition.PARAMS_INIT, **map.PARAMS_INIT}
+    PARAMS_INIT = {
+        **parameters.PARAMS_INIT,
+        **reference_definition.PARAMS_INIT,
+        **map.PARAMS_INIT,
+    }
     for key, value in PARAMS_INIT.items():
         if key not in st.session_state:
             st.session_state[key] = value

@@ -54,7 +54,9 @@ class DriasDataset(HazardDataset):
         scenario = cls.get_scenario_from_lines(raw_lines, sections_loc)
 
         factors_trends = DRIAS_TREND_PREFERENCES
-        factors_descriptions = cls.get_factors_description_from_lines(raw_lines, sections_loc)
+        factors_descriptions = cls.get_factors_description_from_lines(
+            raw_lines, sections_loc
+        )
         factors = []
         for name in df.columns:
             trend = factors_trends.get(name)
@@ -70,7 +72,15 @@ class DriasDataset(HazardDataset):
             if trend is None or description is None:
                 continue
             # No need to convert string to enum since we're already using FactorTrend enum values
-            factors.append(Factor(name=name, description=description, trend=trend, type=FactorType.CONTINUOUS, unit=unit))
+            factors.append(
+                Factor(
+                    name=name,
+                    description=description,
+                    trend=trend,
+                    type=FactorType.CONTINUOUS,
+                    unit=unit,
+                )
+            )
 
         return cls(path=path, df=df, model=model, scenario=scenario, factors=factors)
 
@@ -78,7 +88,9 @@ class DriasDataset(HazardDataset):
         return hash(self.path)
 
     @staticmethod
-    def get_factors_description_from_lines(raw_lines: list[str], sections_loc) -> Dict[str, str]:
+    def get_factors_description_from_lines(
+        raw_lines: list[str], sections_loc
+    ) -> Dict[str, str]:
         sec_id = DRIAS_EXPORT_SECTION_COLUMNS_DEF
         lines = raw_lines[sections_loc[sec_id] + 2 : sections_loc[sec_id + 1]]
         columns = {}
@@ -118,8 +130,15 @@ class DriasDataset(HazardDataset):
     def get_df_from_lines(raw_lines: list[str], sections_loc) -> pd.DataFrame:
         lines = raw_lines[sections_loc[DRIAS_EXPORT_SECTION_DATA] + 2 :]
         data = StringIO("".join(lines))
-        df = pd.read_csv(data, sep=";").dropna(axis=0, subset="Contexte").dropna(axis=1, how="all").rename(columns=normalize_colname)
-        df = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs="EPSG:4326")
+        df = (
+            pd.read_csv(data, sep=";")
+            .dropna(axis=0, subset="Contexte")
+            .dropna(axis=1, how="all")
+            .rename(columns=normalize_colname)
+        )
+        df = gpd.GeoDataFrame(
+            df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs="EPSG:4326"
+        )
         df = df.to_crs(METRIC_CRS)
         df = df.drop(columns=["longitude", "latitude", "point", "contexte"])
         return df

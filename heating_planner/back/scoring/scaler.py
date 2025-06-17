@@ -31,10 +31,14 @@ class ScoreScalingStrategy(StreamlitReadyEnum):
             return df.rank(method="min", pct=True)
         elif self is ScoreScalingStrategy.MINMAX:
             scaler = MinMaxScaler()
-            return pd.DataFrame(scaler.fit_transform(df), index=df.index, columns=df.columns)
+            return pd.DataFrame(
+                scaler.fit_transform(df), index=df.index, columns=df.columns
+            )
         elif self is ScoreScalingStrategy.STANDARD:
             scaler = StandardScaler()
-            return pd.DataFrame(scaler.fit_transform(df), index=df.index, columns=df.columns)
+            return pd.DataFrame(
+                scaler.fit_transform(df), index=df.index, columns=df.columns
+            )
         elif self is ScoreScalingStrategy.NONE:
             return df
         else:

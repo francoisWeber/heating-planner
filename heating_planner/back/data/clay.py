@@ -25,7 +25,15 @@ class ClayHazardDataset(HazardDataset):
         df = df.drop(columns=["DPT", "ALEA"]).rename(columns={"NIVEAU": FACTOR_NAME})
         df = df.to_crs(METRIC_CRS)  # Convert to WGS84
 
-        factors = [Factor(name=FACTOR_NAME, description=FACTOR_DEF, trend=FACTOR_TREND, type=FACTOR_TYPE, unit=FACTOR_UNIT)]
+        factors = [
+            Factor(
+                name=FACTOR_NAME,
+                description=FACTOR_DEF,
+                trend=FACTOR_TREND,
+                type=FACTOR_TYPE,
+                unit=FACTOR_UNIT,
+            )
+        ]
 
         return cls(
             path=path,

@@ -56,7 +56,13 @@ def display():
 
         ref_cities = [city.strip() for city in ref_cities.split(",")]
         ref_indices = [dataset_ref.get_index_of_city(city) for city in ref_cities]
-        ref_values = {key: {city: dataset_ref.df.iloc[index][key] for city, index in zip(ref_cities, ref_indices)} for key in common_keys}
+        ref_values = {
+            key: {
+                city: dataset_ref.df.iloc[index][key]
+                for city, index in zip(ref_cities, ref_indices)
+            }
+            for key in common_keys
+        }
 
         NCOL = 3
         cols = st.columns(NCOL)
@@ -66,10 +72,14 @@ def display():
                 continue
             with cols[i % NCOL]:
                 st.subheader(key)
-                st.write(f"{factor.description[:55]}\n{factor.unit}, {factor.trend.value}")
+                st.write(
+                    f"{factor.description[:55]}\n{factor.unit}, {factor.trend.value}"
+                )
                 hist_name = f"chart-{key}"
                 if hist_name not in st.session_state:
-                    st.session_state[hist_name] = InteractiveHistogram(dataset_ref.df[key], key, ref_values[key])
+                    st.session_state[hist_name] = InteractiveHistogram(
+                        dataset_ref.df[key], key, ref_values[key]
+                    )
                 histo: InteractiveHistogram = st.session_state[hist_name]
                 slider_args = histo.get_slider_args()
                 min_v, max_v = st.slider(**slider_args)

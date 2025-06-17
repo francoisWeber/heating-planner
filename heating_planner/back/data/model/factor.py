@@ -13,7 +13,9 @@ class FactorTrend(StrEnum):
         try:
             return cls(value.lower())
         except ValueError:
-            raise ValueError(f"Invalid FactorType: {value}. Must be one of {[t.value for t in cls]}")
+            raise ValueError(
+                f"Invalid FactorType: {value}. Must be one of {[t.value for t in cls]}"
+            )
 
 
 class FactorType(StrEnum):
@@ -52,4 +54,10 @@ class Factor:
 
     def copy(self):
         """Create a copy of the Factor instance."""
-        return Factor(name=self.name, description=self.description, trend=self.trend, type=self.type, unit=self.unit)
+        return Factor(
+            name=self.name,
+            description=self.description,
+            trend=self.trend,
+            type=self.type,
+            unit=self.unit,
+        )

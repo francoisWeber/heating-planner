@@ -35,7 +35,9 @@ class CachedNominatim(Nominatim):
         if not osp.exists(CACHE_DIR):
             CACHE_DIR.mkdir()
 
-    def _cache_entry(self, query: Any, obtained_location: Location, operation: GeoCodingOperation):
+    def _cache_entry(
+        self, query: Any, obtained_location: Location, operation: GeoCodingOperation
+    ):
         # RAM cache
         self.cache[operation][query] = obtained_location
         # disk cache

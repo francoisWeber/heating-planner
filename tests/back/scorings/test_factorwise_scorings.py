@@ -1,10 +1,13 @@
-import pandas as pd
 import geopandas as gpd
 import numpy as np
-from heating_planner.back.scoring.factorwise_scoring import lower_better_score, higher_better_score, neutral_score, FactorsScoringStrategy
-from heating_planner.back.data.base import Factor, FactorTrend, FactorType
+import pandas as pd
 import pytest
 from shapely.geometry import Point
+
+from heating_planner.back.data.base import Factor, FactorTrend, FactorType
+from heating_planner.back.scoring.factorwise_scoring import (
+    FactorsScoringStrategy, higher_better_score, lower_better_score,
+    neutral_score)
 
 
 @pytest.fixture

@@ -107,7 +107,9 @@ class HazardDataset:
     def get_index_of_city(self, city: str) -> int:
         loc = geocoding.geocode(city)
         point = Point(loc.longitude, loc.latitude)
-        return self.df["geometry"].to_crs(epsg=4326).distance(point).idxmin()  # re-map to GPS CRS for comparison
+        return (
+            self.df["geometry"].to_crs(epsg=4326).distance(point).idxmin()
+        )  # re-map to GPS CRS for comparison
 
     def __add__(self, other: "HazardDataset"):
         if not isinstance(other, HazardDataset):
@@ -115,12 +117,16 @@ class HazardDataset:
         if self.df is None or other.df is None:
             raise ValueError("Cannot add datasets with None df")
 
-        merged_df = gpd.sjoin_nearest(self.df, other.df, how="inner", max_distance=SJOIN_MAX_DISTANCE_M).drop(columns=["index_right"])
+        merged_df = gpd.sjoin_nearest(
+            self.df, other.df, how="inner", max_distance=SJOIN_MAX_DISTANCE_M
+        ).drop(columns=["index_right"])
         path = f"{self.path}_{other.path}"
         model = f"{self.model}_{other.model}"
         scenario = f"{self.scenario}_{other.scenario}"
         factors = self.factors + other.factors
-        return HazardDataset(df=merged_df, path=path, model=model, scenario=scenario, factors=factors)
+        return HazardDataset(
+            df=merged_df, path=path, model=model, scenario=scenario, factors=factors
+        )
 
     def __radd__(self, other: "HazardDataset"):
         if other == None:
@@ -128,7 +134,9 @@ class HazardDataset:
         else:
             return self.__add__(other)
 
-    def explode_information(self) -> Tuple[pd.DataFrame, gpd.GeoDataFrame, List[Factor], Tuple[str, str, str]]:
+    def explode_information(
+        self,
+    ) -> Tuple[pd.DataFrame, gpd.GeoDataFrame, List[Factor], Tuple[str, str, str]]:
         metadata = (self.path, self.model, self.scenario)
         df = self.df
         factors = self.factors
@@ -145,6 +153,10 @@ class HazardDataset:
         df_binary = df[[factor.name for factor in factors_binary]]
         df_continuous = df[[factor.name for factor in factors_continuous]]
 
-        ds_binary = HazardDataset(df=make_geo_df(df_binary, geometry), factors=factors_binary)
-        ds_continous = HazardDataset(df=make_geo_df(df_continuous, geometry), factors=factors_continuous)
+        ds_binary = HazardDataset(
+            df=make_geo_df(df_binary, geometry), factors=factors_binary
+        )
+        ds_continous = HazardDataset(
+            df=make_geo_df(df_continuous, geometry), factors=factors_continuous
+        )
         return ds_binary, ds_continous

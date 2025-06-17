@@ -58,7 +58,9 @@ def apply_binary_masks(
     ds_binary: HazardDataset,
 ) -> gpd.GeoDataFrame:
     min_score = processed_scores[SCORE_COLNAME].min()
-    factors_active = [factor for factor, active in binary_factor_infos.items() if active]
+    factors_active = [
+        factor for factor, active in binary_factor_infos.items() if active
+    ]
 
     for factor in factors_active:
         if factor.trend == FactorTrend.HIGHER_BETTER:

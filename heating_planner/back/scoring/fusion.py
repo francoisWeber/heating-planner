@@ -13,7 +13,9 @@ class ScoringFusion(StreamlitReadyEnum):
     WEIGHTED_MEAN = "weighted mean of each factor's score"
     # RRF = "reciprocal rank fusion from each factor's rank"
 
-    def __call__(self, scores: HazardDataset, coefs: Dict[Factor, float]) -> HazardDataset:
+    def __call__(
+        self, scores: HazardDataset, coefs: Dict[Factor, float]
+    ) -> HazardDataset:
         gdf = scores.df[["geometry"]].copy()
         for factor in scores.factors:
             if factor.is_binary():
@@ -40,7 +42,9 @@ class ScoringFusion(StreamlitReadyEnum):
         return weighted_scores
 
     @staticmethod
-    def reciprocal_rank_fusion(scores: gpd.GeoDataFrame, coefs: Dict[Factor, float]) -> np.ndarray:
+    def reciprocal_rank_fusion(
+        scores: gpd.GeoDataFrame, coefs: Dict[Factor, float]
+    ) -> np.ndarray:
         weighted_scores = np.zeros_like(scores.iloc[:, 0])
         for factor, coef in coefs.items():
             if factor.name not in scores.columns:
