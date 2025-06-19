@@ -1,3 +1,4 @@
+local.env
 
 *.ipynb
 heating_planner_vibe/

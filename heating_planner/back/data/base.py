@@ -72,14 +72,7 @@ class HazardDataset:
                     elif "application/zip" in content_type:
                         suffix = ".zip"
                     elif "application/octet-stream" in content_type:
-                        # Try to determine format from content-disposition if available
-                        content_disp = r.headers.get("content-disposition", "")
-                        if "filename=" in content_disp:
-                            filename = content_disp.split("filename=")[-1].strip("\"'")
-                            suffix = os.path.splitext(filename)[-1]
-                        else:
-                            # Default to .dat for unknown binary content
-                            suffix = ".dat"
+                        suffix = ".shp"
                 with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as f:
                     for chunk in r.iter_content(chunk_size=8192):
                         f.write(chunk)

@@ -10,6 +10,7 @@ from heating_planner.back.data import (
 from heating_planner.back.data.base import HazardDataset
 from heating_planner.back.streamlit_enums import StreamlitReadyEnum
 from heating_planner.front.loading import load_and_cache_dataset
+from heating_planner.front.params import settings
 
 
 class HazardDatasetType(StreamlitReadyEnum):
@@ -33,12 +34,12 @@ PARAMS_INIT = {
     "dataset_proj": None,
 }
 
-drias_ref_path = "/Users/francois.weber/perso/tmp/heating2/data/drias/ref_indicesMAX_25041416092929830.txt"
-drias_proj_path = "/Users/francois.weber/perso/tmp/heating2/data/drias/2050_indicesMAX_25041416092929830.txt"
-clay_path = "/Users/francois.weber/perso/tmp/heating2/data/clay/drias_clay.shp"
-sea_elevation_path = (
-    "/Users/francois.weber/perso/tmp/heating2/data/sea_elevation/sea_elevation.shp"
-)
+# drias_ref_path = "/Users/francois.weber/perso/tmp/heating2/data/drias/ref_indicesMAX_25041416092929830.txt"
+# drias_proj_path = "/Users/francois.weber/perso/tmp/heating2/data/drias/2050_indicesMAX_25041416092929830.txt"
+# clay_path = "/Users/francois.weber/perso/tmp/heating2/data/clay/drias_clay.shp"
+# sea_elevation_path = (
+#     "/Users/francois.weber/perso/tmp/heating2/data/sea_elevation/sea_elevation.shp"
+# )
 
 
 @st.fragment
@@ -59,7 +60,9 @@ def display():
                 key="params-select-ref-1",
             )
             dataset_path = st.text_input(
-                "Dataset path", value=drias_ref_path, key="params-txt-input-ref-1"
+                "Dataset path",
+                value=settings.DRIAS_REF_PATH,
+                key="params-txt-input-ref-1",
             )
             ref_datasets.append(
                 load_and_cache_dataset(dataset_path, data_loader.get_class())
@@ -73,7 +76,9 @@ def display():
                 key="params-select-ref-2",
             )
             dataset_path = st.text_input(
-                "Dataset path", value=sea_elevation_path, key="params-txt-input-ref-2"
+                "Dataset path",
+                value=settings.SEA_ELEVATION_PATH,
+                key="params-txt-input-ref-2",
             )
             ref_datasets.append(
                 load_and_cache_dataset(dataset_path, data_loader.get_class())
@@ -87,7 +92,7 @@ def display():
                 key="params-select-ref-3",
             )
             dataset_path = st.text_input(
-                "Dataset path", value=clay_path, key="params-txt-input-ref-3"
+                "Dataset path", value=settings.CLAY_PATH, key="params-txt-input-ref-3"
             )
             ref_datasets.append(
                 load_and_cache_dataset(dataset_path, data_loader.get_class())
@@ -103,7 +108,9 @@ def display():
                 key="params-select-proj-1",
             )
             dataset_path = st.text_input(
-                "Dataset path", value=drias_proj_path, key="params-txt-input-proj-1"
+                "Dataset path",
+                value=settings.DRIAS_PROJ_PATH,
+                key="params-txt-input-proj-1",
             )
             proj_datasets.append(
                 load_and_cache_dataset(dataset_path, data_loader.get_class())
@@ -117,7 +124,9 @@ def display():
                 key="params-select-proj-2",
             )
             dataset_path = st.text_input(
-                "Dataset path", value=sea_elevation_path, key="params-txt-input-proj-2"
+                "Dataset path",
+                value=settings.SEA_ELEVATION_PATH,
+                key="params-txt-input-proj-2",
             )
             proj_datasets.append(
                 load_and_cache_dataset(dataset_path, data_loader.get_class())
@@ -131,7 +140,7 @@ def display():
                 key="params-select-proj-3",
             )
             dataset_path = st.text_input(
-                "Dataset path", value=clay_path, key="params-txt-input-proj-3"
+                "Dataset path", value=settings.CLAY_PATH, key="params-txt-input-proj-3"
             )
             proj_datasets.append(
                 load_and_cache_dataset(dataset_path, data_loader.get_class())
