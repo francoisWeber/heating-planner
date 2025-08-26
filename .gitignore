@@ -1,7 +1,9 @@
-*.ipynb
+local.env
 
+*.ipynb
+heating_planner_vibe/
+heating_planner_vib/
 # specific to project
-data*/
 custom_converter
 env-init.sh
 
